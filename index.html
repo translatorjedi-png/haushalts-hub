@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#FBFAF8" />
+<title>Haushaltsbuch — Andriy &amp; Anna</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><text y='13' font-size='13'>📒</text></svg>" />
+
+<!-- Firebase: NUR aktiv, wenn unten eine Config eingetragen ist. Laedt im
+     Hintergrund (defer) und blockiert die App nie. Ohne Config = alles lokal. -->
+<script defer src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script defer src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+
+<script>
+  /* =====================================================================
+     LIVE-SYNC ZWISCHEN DIR UND ANYA — optional, einmalig einzurichten.
+
+     Solange das Objekt leer bleibt, laeuft alles LOKAL (localStorage) auf
+     diesem Geraet. Fuer gemeinsame, live synchronisierte Listen:
+
+       1. console.firebase.google.com -> Projekt anlegen (gratis)
+       2. Firestore-Datenbank erstellen
+       3. Web-App registrieren, die firebaseConfig-Werte hier einsetzen
+       4. Diese Datei hosten, beide oeffnen dieselbe Seite -> selbe Listen, live.
+
+     Mehr dazu in der README.md daneben.
+     ===================================================================== */
+  window.HUB_FIREBASE_CONFIG = {
+    // apiKey: "...",
+    // authDomain: "...",
+    // projectId: "...",
+    // storageBucket: "...",
+    // messagingSenderId: "...",
+    // appId: "...",
+  };
+</script>
+
+<style>
+  :root{
+    --paper:#FBFAF8; --card:#FFFFFF; --ink:#1B1B1A; --muted:#6E6A63;
+    --line:#E7E3DC; --accent:#34415E; --done:#6E7C5A;
+    --serif:'Iowan Old Style','Palatino Linotype',Palatino,Georgia,serif;
+    --sans:ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;}
+  body{background:var(--paper);color:var(--ink);font-family:var(--sans);}
+  input,button,select{font-family:inherit;}
+  button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:1px;}
+  input::placeholder{color:var(--muted);}
+  @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+
+  .wrap{max-width:620px;margin:0 auto;padding:0 16px 64px;}
+  header{padding:26px 0 14px;}
+  .title{font-family:var(--serif);font-size:30px;letter-spacing:-.3px;}
+  .sub{color:var(--muted);font-size:13px;margin-top:2px;display:flex;align-items:center;gap:8px;}
+  .badge{font-size:11px;padding:1px 8px;border-radius:999px;border:1px solid var(--line);color:var(--muted);}
+  .badge.live{color:var(--done);background:#EFF3EA;}
+
+  nav{display:flex;gap:4px;border-bottom:1px solid var(--line);margin-bottom:20px;}
+  .tab{background:none;border:none;cursor:pointer;padding:10px 12px;font-size:14px;letter-spacing:.2px;
+       color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-1px;}
+  .tab.active{color:var(--ink);border-bottom-color:var(--accent);font-weight:600;}
+  .tab .n{color:var(--muted);font-size:11px;margin-right:6px;}
+
+  .row{display:flex;gap:8px;margin-bottom:14px;}
+  .inp{flex:1;border:1px solid var(--line);border-radius:8px;padding:10px 12px;font-size:16px;color:var(--ink);background:var(--card);}
+  .primary{background:var(--accent);color:#fff;border:none;border-radius:8px;padding:10px 14px;cursor:pointer;font-size:14px;white-space:nowrap;}
+  .chip{background:transparent;color:var(--accent);border:1px solid var(--line);border-radius:999px;padding:5px 10px;cursor:pointer;font-size:12px;white-space:nowrap;}
+  .xbtn{background:none;border:none;color:var(--muted);cursor:pointer;font-size:18px;padding:4px;line-height:1;}
+
+  ul.list{list-style:none;margin:0;padding:0;}
+  .li{display:flex;align-items:center;gap:12px;padding:11px 2px;border-bottom:1px solid var(--line);}
+  .check{width:20px;height:20px;border-radius:5px;flex-shrink:0;cursor:pointer;border:1.5px solid var(--muted);
+         background:transparent;color:#fff;font-size:13px;line-height:17px;padding:0;}
+  .check.on{border-color:var(--done);background:var(--done);}
+  .itxt{flex:1;font-size:16px;}
+  .itxt.on{color:var(--muted);text-decoration:line-through;}
+
+  .subhead{display:flex;align-items:center;justify-content:space-between;font-size:12px;letter-spacing:1px;
+           text-transform:uppercase;color:var(--muted);margin:18px 0 6px;}
+  .linkbtn{background:none;border:none;color:var(--accent);cursor:pointer;font-size:12px;}
+  .empty{color:var(--muted);font-size:15px;padding:24px 0;line-height:1.5;}
+  .empty.small{font-size:13px;padding:0 0 14px;}
+
+  .tag{display:inline-block;background:#F2EFE9;color:var(--muted);border-radius:999px;padding:2px 8px;font-size:11px;margin-right:5px;}
+  .mealname{font-family:var(--serif);font-size:18px;flex:1;}
+  .ing{color:var(--muted);font-size:13px;margin-top:5px;}
+
+  .planrow{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--line);}
+  .planday{width:30px;color:var(--muted);font-size:13px;font-weight:600;}
+  .sel{flex:1;border:1px solid var(--line);border-radius:8px;padding:8px;font-size:16px;color:var(--ink);background:var(--card);}
+
+  .card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px;margin-bottom:12px;}
+  .cardhead{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
+  .daylabel{font-family:var(--serif);font-size:17px;border:none;padding:0;background:transparent;flex:1;color:var(--ink);}
+  .exrow{display:flex;align-items:center;gap:8px;padding:5px 0;}
+  .exname{flex:1;border:1px solid var(--line);border-radius:8px;padding:6px 8px;font-size:16px;color:var(--ink);background:var(--card);}
+  .exscheme{width:92px;border:1px solid var(--line);border-radius:8px;padding:6px 8px;font-size:16px;text-align:center;color:var(--muted);background:var(--card);}
+  .logrow{display:flex;align-items:center;gap:10px;padding:9px 2px;border-bottom:1px solid var(--line);font-size:14px;}
+</style>
+</head>
+<body>
+<div id="app" class="wrap"></div>
+
+<script>
+/* ----------------------------------------------------------------------- *
+ * Haushalts-Hub — Andriy & Anna, Wien.  Reines HTML/CSS/JS, kein Build,
+ * keine Laufzeit-Abhaengigkeit. Drei Listen: Einkauf · Kueche · Training.
+ * Speicher: localStorage (lokal) + optional Firestore (live geteilt).
+ * ----------------------------------------------------------------------- */
+(function () {
+  "use strict";
+
+  /* ----------------------------- Speicher ----------------------------- */
+  var LS = "hub:";
+  function lsLoad(key, fb){ try{ var v=localStorage.getItem(LS+key); return v?JSON.parse(v):fb; }catch(e){ return fb; } }
+  function lsSave(key, v){ try{ localStorage.setItem(LS+key, JSON.stringify(v)); }catch(e){} }
+
+  var fbDoc = null;
+  function initFirebase(){
+    var cfg = window.HUB_FIREBASE_CONFIG || {};
+    if(!cfg.projectId || !window.firebase) return false;
+    try{
+      firebase.initializeApp(cfg);
+      fbDoc = firebase.firestore().collection("haushalt").doc("shared");
+      return true;
+    }catch(e){ console.error("Firebase-Init fehlgeschlagen:", e); fbDoc=null; return false; }
+  }
+  var SYNC = false; // wird nach Firebase-Laden gesetzt
+
+  var uid = function(){ return Math.random().toString(36).slice(2,9); };
+  function esc(s){ return String(s).replace(/[&<>"']/g, function(c){
+    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+
+  /* ------------------------------- Seeds ------------------------------ */
+  var SEED_SHOPPING = [
+    { id:uid(), text:"Haferflocken", done:false },
+    { id:uid(), text:"Eier", done:false },
+    { id:uid(), text:"Kaffee", done:false },
+    { id:uid(), text:"Olivenöl", done:false },
+  ];
+  var SEED_KITCHEN = {
+    meals: [
+      { id:uid(), name:"Linsen-Dal", tags:["vegetarisch","meal-prep"], ing:["Rote Linsen","Kokosmilch","Zwiebel","Ingwer","Currypaste"] },
+      { id:uid(), name:"Ofengemüse mit Feta", tags:["vegetarisch","schnell"], ing:["Zucchini","Paprika","Kartoffeln","Feta","Olivenöl"] },
+      { id:uid(), name:"Hühnchen-Reis-Bowl", tags:["meal-prep"], ing:["Hühnerbrust","Reis","Brokkoli","Sojasauce"] },
+      { id:uid(), name:"Pasta Aglio e Olio", tags:["schnell"], ing:["Spaghetti","Knoblauch","Petersilie","Chili"] },
+      { id:uid(), name:"Shakshuka", tags:["vegetarisch","schnell"], ing:["Eier","Passata","Paprika","Kreuzkümmel"] },
+      { id:uid(), name:"Lachs mit Brokkoli", tags:["schnell"], ing:["Lachsfilet","Brokkoli","Zitrone"] },
+      { id:uid(), name:"Couscous-Salat", tags:["vegetarisch","meal-prep"], ing:["Couscous","Gurke","Tomate","Minze","Kichererbsen"] },
+      { id:uid(), name:"Chili", tags:["meal-prep"], ing:["Faschiertes oder Bohnen","Kidneybohnen","Mais","Tomaten"] },
+    ],
+    plan: { Mo:null, Di:null, Mi:null, Do:null, Fr:null, Sa:null, So:null },
+  };
+  var SEED_TRAINING = {
+    program: {
+      A: { label:"Tag A · Push", ex:[
+        { id:uid(), name:"Bankdrücken", scheme:"3 × 8–10" },
+        { id:uid(), name:"Schulterdrücken", scheme:"3 × 10" },
+        { id:uid(), name:"Trizeps", scheme:"3 × 12" },
+      ]},
+      B: { label:"Tag B · Pull", ex:[
+        { id:uid(), name:"Klimmzüge / Latzug", scheme:"3 × 8–10" },
+        { id:uid(), name:"Rudern", scheme:"3 × 10" },
+        { id:uid(), name:"Bizeps", scheme:"3 × 12" },
+      ]},
+      C: { label:"Tag C · Beine", ex:[
+        { id:uid(), name:"Kniebeugen", scheme:"3 × 8–10" },
+        { id:uid(), name:"Kreuzheben / RDL", scheme:"3 × 8" },
+        { id:uid(), name:"Waden", scheme:"3 × 15" },
+      ]},
+    },
+    log: [],
+  };
+
+  var TABS = ["Einkauf","Küche","Training"];
+  var DAYS = ["Mo","Di","Mi","Do","Fr","Sa","So"];
+
+  /* ------------------------------- State ------------------------------ */
+  var state = {
+    tab: "Einkauf",
+    shopping: lsLoad("shopping", SEED_SHOPPING),
+    kitchen:  lsLoad("kitchen",  SEED_KITCHEN),
+    training: lsLoad("training", SEED_TRAINING),
+  };
+
+  function putShopping(v){ state.shopping=v; lsSave("shopping",v); if(SYNC&&fbDoc) fbDoc.set({shopping:v},{merge:true}); }
+  function putKitchen(v){  state.kitchen=v;  lsSave("kitchen",v);  if(SYNC&&fbDoc) fbDoc.set({kitchen:v},{merge:true}); }
+  function putTraining(v){ state.training=v; lsSave("training",v); if(SYNC&&fbDoc) fbDoc.set({training:v},{merge:true}); }
+
+  /* ------------------------------- Views ------------------------------ */
+  function viewEinkauf(){
+    var items = state.shopping || [];
+    var open = items.filter(function(i){ return !i.done; });
+    var done = items.filter(function(i){ return i.done; });
+    var h = "";
+    h += '<div class="row">'
+       +   '<input id="shop-input" class="inp" placeholder="Was fehlt? z. B. Tomaten" data-enter="shop-add" />'
+       +   '<button class="primary" data-action="shop-add">Hinzufügen</button>'
+       + '</div>';
+    if(open.length===0 && done.length===0){
+      h += '<div class="empty">Noch nichts auf der Liste. Trag oben etwas ein.</div>';
+    }
+    h += '<ul class="list">' + open.map(itemRow).join("") + '</ul>';
+    if(done.length>0){
+      h += '<div class="subhead"><span>Erledigt ('+done.length+')</span>'
+         +   '<button class="linkbtn" data-action="shop-clear-done">Erledigte entfernen</button></div>'
+         + '<ul class="list">' + done.map(itemRow).join("") + '</ul>';
+    }
+    return h;
+  }
+  function itemRow(i){
+    return '<li class="li">'
+      + '<button class="check'+(i.done?' on':'')+'" data-action="shop-toggle" data-id="'+i.id+'" aria-label="abhaken">'+(i.done?'✓':'')+'</button>'
+      + '<span class="itxt'+(i.done?' on':'')+'">'+esc(i.text)+'</span>'
+      + '<button class="xbtn" data-action="shop-del" data-id="'+i.id+'" aria-label="löschen">×</button>'
+      + '</li>';
+  }
+
+  function viewKueche(){
+    var k = state.kitchen; var meals = k.meals || [];
+    var h = "";
+    h += '<div class="subhead"><span>Wochenplan</span></div>';
+    h += '<div style="margin-bottom:24px">';
+    DAYS.forEach(function(d){
+      var opts = '<option value="">—</option>' + meals.map(function(m){
+        return '<option value="'+m.id+'"'+(k.plan[d]===m.id?' selected':'')+'>'+esc(m.name)+'</option>';
+      }).join("");
+      h += '<div class="planrow">'
+         +   '<span class="planday">'+d+'</span>'
+         +   '<select class="sel" data-action="plan-set" data-day="'+d+'">'+opts+'</select>'
+         +   (k.plan[d] ? '<button class="chip" data-action="plan-to-shopping" data-day="'+d+'">Zutaten → Einkauf</button>' : '')
+         + '</div>';
+    });
+    h += '</div>';
+
+    h += '<div class="subhead"><span>Rezepte ('+meals.length+')</span></div>';
+    h += '<div class="row">'
+       +   '<input id="meal-input" class="inp" placeholder="Neues Gericht" data-enter="meal-add" />'
+       +   '<button class="primary" data-action="meal-add">Hinzufügen</button>'
+       + '</div>';
+    h += '<ul class="list">' + meals.map(function(m){
+      var tags = (m.tags&&m.tags.length) ? '<div style="margin-top:4px">'+m.tags.map(function(t){return '<span class="tag">'+esc(t)+'</span>';}).join("")+'</div>' : '';
+      var ing  = (m.ing&&m.ing.length) ? '<div class="ing">'+m.ing.map(esc).join(" · ")+'</div>' : '';
+      return '<li style="padding:12px 2px;border-bottom:1px solid var(--line)">'
+        + '<div style="display:flex;align-items:baseline;gap:8px">'
+        +   '<span class="mealname">'+esc(m.name)+'</span>'
+        +   '<button class="chip" data-action="meal-to-shopping" data-id="'+m.id+'">→ Einkauf</button>'
+        +   '<button class="xbtn" data-action="meal-del" data-id="'+m.id+'">×</button>'
+        + '</div>' + tags + ing
+        + '</li>';
+    }).join("") + '</ul>';
+    return h;
+  }
+
+  function viewTraining(){
+    var t = state.training; var prog = t.program;
+    var h = "";
+    h += '<div class="empty small">3-Tage-Split — Übungen sind frei editierbar. „Trainiert ✓“ trägt die Einheit mit Datum ein.</div>';
+    ["A","B","C"].forEach(function(key){
+      var day = prog[key];
+      h += '<div class="card">'
+         +   '<div class="cardhead">'
+         +     '<input class="daylabel" value="'+esc(day.label)+'" data-edit="day-label" data-key="'+key+'" />'
+         +     '<button class="primary" data-action="log-session" data-key="'+key+'">Trainiert ✓</button>'
+         +   '</div>';
+      day.ex.forEach(function(e){
+        h += '<div class="exrow">'
+           +   '<input class="exname" value="'+esc(e.name)+'" data-edit="ex-name" data-key="'+key+'" data-exid="'+e.id+'" />'
+           +   '<input class="exscheme" value="'+esc(e.scheme)+'" data-edit="ex-scheme" data-key="'+key+'" data-exid="'+e.id+'" />'
+           +   '<button class="xbtn" data-action="ex-del" data-key="'+key+'" data-exid="'+e.id+'">×</button>'
+           + '</div>';
+      });
+      h += '<div class="row" style="margin-top:6px">'
+         +   '<input id="ex-input-'+key+'" class="inp" style="padding:7px 8px" placeholder="Übung ergänzen" data-enter="ex-add" data-key="'+key+'" />'
+         +   '<button class="chip" data-action="ex-add" data-key="'+key+'">+ Übung</button>'
+         + '</div>';
+      h += '</div>';
+    });
+
+    h += '<div class="subhead" style="margin-top:26px"><span>Verlauf</span></div>';
+    if(t.log.length===0){
+      h += '<div class="empty">Noch keine Einheit eingetragen.</div>';
+    } else {
+      h += '<ul class="list">' + t.log.map(function(l){
+        var d = new Date(l.date).toLocaleDateString("de-AT",{weekday:"short",day:"2-digit",month:"2-digit"});
+        return '<li class="logrow">'
+          + '<span style="color:var(--done)">✓</span>'
+          + '<span style="flex:1">'+esc(l.day)+'</span>'
+          + '<span style="color:var(--muted);font-size:13px">'+esc(d)+'</span>'
+          + '<button class="xbtn" data-action="log-del" data-id="'+l.id+'" style="font-size:16px">×</button>'
+          + '</li>';
+      }).join("") + '</ul>';
+    }
+    return h;
+  }
+
+  /* ------------------------------- Render ----------------------------- */
+  function render(){
+    var body = state.tab==="Einkauf" ? viewEinkauf()
+             : state.tab==="Küche"   ? viewKueche()
+             : viewTraining();
+    var nav = TABS.map(function(t,i){
+      return '<button class="tab'+(state.tab===t?' active':'')+'" data-action="tab" data-tab="'+t+'">'
+        + '<span class="n">'+String(i+1).padStart(2,"0")+'</span>'+esc(t)+'</button>';
+    }).join("");
+    var badge = SYNC ? '<span class="badge live">● live geteilt</span>' : '<span class="badge">○ lokal</span>';
+    document.getElementById("app").innerHTML =
+        '<header>'
+      +   '<div class="title">Haushaltsbuch</div>'
+      +   '<div class="sub"><span>Andriy &amp; Anna · Wien</span>'+badge+'</div>'
+      + '</header>'
+      + '<nav>'+nav+'</nav>'
+      + '<div id="content">'+body+'</div>';
+  }
+
+  /* --------------------------- Interaktionen -------------------------- */
+  function findMeal(id){ return (state.kitchen.meals||[]).find(function(m){return m.id===id;}); }
+
+  function ingToShopping(meal){
+    if(!meal || !meal.ing || !meal.ing.length) return;
+    var have = {}; (state.shopping||[]).forEach(function(s){ have[s.text.toLowerCase()]=true; });
+    var add = meal.ing.filter(function(x){ return !have[x.toLowerCase()]; })
+                      .map(function(x){ return { id:uid(), text:x, done:false }; });
+    if(add.length){ putShopping(add.concat(state.shopping)); }
+  }
+
+  document.getElementById("app").addEventListener("click", function(ev){
+    var el = ev.target.closest("[data-action]");
+    if(!el) return;
+    var a = el.getAttribute("data-action");
+    var id = el.getAttribute("data-id");
+    var key = el.getAttribute("data-key");
+    var day = el.getAttribute("data-day");
+
+    if(a==="tab"){ state.tab = el.getAttribute("data-tab"); render(); return; }
+
+    if(a==="shop-add"){
+      var inp = document.getElementById("shop-input"); var v=(inp.value||"").trim();
+      if(!v) return;
+      putShopping([{id:uid(),text:v,done:false}].concat(state.shopping)); render(); return;
+    }
+    if(a==="shop-toggle"){
+      putShopping(state.shopping.map(function(i){ return i.id===id?Object.assign({},i,{done:!i.done}):i; })); render(); return;
+    }
+    if(a==="shop-del"){ putShopping(state.shopping.filter(function(i){return i.id!==id;})); render(); return; }
+    if(a==="shop-clear-done"){ putShopping(state.shopping.filter(function(i){return !i.done;})); render(); return; }
+
+    if(a==="meal-add"){
+      var mi=document.getElementById("meal-input"); var mv=(mi.value||"").trim();
+      if(!mv) return;
+      putKitchen(Object.assign({},state.kitchen,{meals:[{id:uid(),name:mv,tags:[],ing:[]}].concat(state.kitchen.meals)})); render(); return;
+    }
+    if(a==="meal-del"){
+      var plan=Object.assign({},state.kitchen.plan);
+      Object.keys(plan).forEach(function(d){ if(plan[d]===id) plan[d]=null; });
+      putKitchen(Object.assign({},state.kitchen,{meals:state.kitchen.meals.filter(function(m){return m.id!==id;}),plan:plan})); render(); return;
+    }
+    if(a==="meal-to-shopping"){ ingToShopping(findMeal(id)); render(); return; }
+    if(a==="plan-to-shopping"){ ingToShopping(findMeal(state.kitchen.plan[day])); render(); return; }
+
+    if(a==="log-session"){
+      var entry={ id:uid(), day:state.training.program[key].label, date:new Date().toISOString() };
+      putTraining(Object.assign({},state.training,{log:[entry].concat(state.training.log).slice(0,60)})); render(); return;
+    }
+    if(a==="log-del"){ putTraining(Object.assign({},state.training,{log:state.training.log.filter(function(l){return l.id!==id;})})); render(); return; }
+
+    if(a==="ex-add"){
+      var ei=document.getElementById("ex-input-"+key); var ev2=(ei.value||"").trim();
+      if(!ev2) return;
+      var dy=state.training.program[key];
+      var prog=Object.assign({},state.training.program); prog[key]=Object.assign({},dy,{ex:dy.ex.concat([{id:uid(),name:ev2,scheme:"3 × 10"}])});
+      putTraining(Object.assign({},state.training,{program:prog})); render(); return;
+    }
+    if(a==="ex-del"){
+      var exid=el.getAttribute("data-exid"); var d2=state.training.program[key];
+      var prog2=Object.assign({},state.training.program); prog2[key]=Object.assign({},d2,{ex:d2.ex.filter(function(e){return e.id!==exid;})});
+      putTraining(Object.assign({},state.training,{program:prog2})); render(); return;
+    }
+  });
+
+  // Enter-Taste in Hinzufuegen-Feldern
+  document.getElementById("app").addEventListener("keydown", function(ev){
+    if(ev.key!=="Enter") return;
+    var t = ev.target.closest("[data-enter]");
+    if(!t) return;
+    ev.preventDefault();
+    var which = t.getAttribute("data-enter");
+    var trigger = document.querySelector('[data-action="'+which+'"]'
+      + (which==="ex-add" ? '[data-key="'+t.getAttribute("data-key")+'"]' : ''));
+    if(trigger) trigger.click();
+  });
+
+  // Inline-Edits (Training): aktualisieren State OHNE Re-Render -> Fokus bleibt
+  document.getElementById("app").addEventListener("input", function(ev){
+    var t = ev.target.closest("[data-edit]");
+    if(!t) return;
+    var what = t.getAttribute("data-edit");
+    var key = t.getAttribute("data-key");
+    var exid = t.getAttribute("data-exid");
+    var prog = Object.assign({}, state.training.program);
+    var day = Object.assign({}, prog[key]);
+    if(what==="day-label"){
+      day.label = t.value;
+    } else {
+      day.ex = day.ex.map(function(e){
+        if(e.id!==exid) return e;
+        var c = Object.assign({}, e);
+        if(what==="ex-name") c.name = t.value; else c.scheme = t.value;
+        return c;
+      });
+    }
+    prog[key] = day;
+    putTraining(Object.assign({}, state.training, { program: prog }));
+    // bewusst KEIN render() -> Eingabefokus bleibt erhalten
+  });
+
+  // Wochenplan-Select
+  document.getElementById("app").addEventListener("change", function(ev){
+    var t = ev.target.closest('[data-action="plan-set"]');
+    if(!t) return;
+    var day = t.getAttribute("data-day");
+    putKitchen(Object.assign({}, state.kitchen, { plan: Object.assign({}, state.kitchen.plan, (function(){var o={};o[day]=t.value||null;return o;})()) }));
+    render();
+  });
+
+  // Mehrere Tabs desselben Geraets synchron halten (lokaler Modus)
+  window.addEventListener("storage", function(e){
+    if(e.key===LS+"shopping" && e.newValue){ state.shopping=JSON.parse(e.newValue); render(); }
+    if(e.key===LS+"kitchen"  && e.newValue){ state.kitchen =JSON.parse(e.newValue); render(); }
+    if(e.key===LS+"training" && e.newValue){ state.training=JSON.parse(e.newValue); render(); }
+  });
+
+  /* ------------------------- Start + Firebase ------------------------- */
+  render(); // sofort sichtbar — keine Wartezeit, keine CDN-Abhaengigkeit
+
+  // Firebase-Skripte laden mit defer; sobald bereit, optional Live-Sync starten.
+  window.addEventListener("load", function(){
+    if(initFirebase()){
+      SYNC = true; render();
+      fbDoc.onSnapshot(function(snap){
+        var d = snap.data();
+        if(!d){ fbDoc.set({shopping:state.shopping, kitchen:state.kitchen, training:state.training}); return; }
+        if(d.shopping){ state.shopping=d.shopping; lsSave("shopping",d.shopping); }
+        if(d.kitchen){  state.kitchen =d.kitchen;  lsSave("kitchen", d.kitchen); }
+        if(d.training){ state.training=d.training; lsSave("training",d.training); }
+        render();
+      }, function(err){ console.error("Sync-Fehler:", err); });
+    }
+  });
+})();
+</script>
+</body>
+</html>
