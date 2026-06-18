@@ -10,6 +10,7 @@
 <!-- Firebase: NUR aktiv, wenn unten eine Config eingetragen ist. Laedt im
      Hintergrund (defer) und blockiert die App nie. Ohne Config = alles lokal. -->
 <script defer src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script defer src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script defer src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 
 <script>
@@ -27,12 +28,12 @@
      Mehr dazu in der README.md daneben.
      ===================================================================== */
   window.HUB_FIREBASE_CONFIG = {
-    // apiKey: "...",
-    // authDomain: "...",
-    // projectId: "...",
-    // storageBucket: "...",
-    // messagingSenderId: "...",
-    // appId: "...",
+    apiKey: "AIzaSyD8mhQyjAKlqh7BPxiitgwG61NHEmBuOBU",
+    authDomain: "haushalts-hub.firebaseapp.com",
+    projectId: "haushalts-hub",
+    storageBucket: "haushalts-hub.firebasestorage.app",
+    messagingSenderId: "777210379870",
+    appId: "1:777210379870:web:52bf043d8b05fd51843ecf",
   };
 </script>
 
@@ -99,6 +100,14 @@
   .exname{flex:1;border:1px solid var(--line);border-radius:8px;padding:6px 8px;font-size:16px;color:var(--ink);background:var(--card);}
   .exscheme{width:92px;border:1px solid var(--line);border-radius:8px;padding:6px 8px;font-size:16px;text-align:center;color:var(--muted);background:var(--card);}
   .logrow{display:flex;align-items:center;gap:10px;padding:9px 2px;border-bottom:1px solid var(--line);font-size:14px;}
+
+  .gate{max-width:360px;margin:14vh auto 0;text-align:center;}
+  .gate .title{font-size:26px;}
+  .gate p{color:var(--muted);font-size:14px;line-height:1.5;margin:6px 0 22px;}
+  .gate .inp{width:100%;margin-bottom:10px;text-align:left;}
+  .gate .primary{width:100%;padding:12px;font-size:15px;}
+  .gate .err{color:#9B2C2C;font-size:13px;min-height:18px;margin:10px 0 0;}
+  .logout{background:none;border:none;color:var(--muted);cursor:pointer;font-size:12px;text-decoration:underline;padding:0;}
 </style>
 </head>
 <body>
@@ -118,17 +127,24 @@
   function lsLoad(key, fb){ try{ var v=localStorage.getItem(LS+key); return v?JSON.parse(v):fb; }catch(e){ return fb; } }
   function lsSave(key, v){ try{ localStorage.setItem(LS+key, JSON.stringify(v)); }catch(e){} }
 
-  var fbDoc = null;
+  var fbDoc = null, fbAuth = null;
   function initFirebase(){
     var cfg = window.HUB_FIREBASE_CONFIG || {};
     if(!cfg.projectId || !window.firebase) return false;
     try{
       firebase.initializeApp(cfg);
       fbDoc = firebase.firestore().collection("haushalt").doc("shared");
+      fbAuth = firebase.auth();
       return true;
-    }catch(e){ console.error("Firebase-Init fehlgeschlagen:", e); fbDoc=null; return false; }
+    }catch(e){ console.error("Firebase-Init fehlgeschlagen:", e); fbDoc=null; fbAuth=null; return false; }
   }
-  var SYNC = false; // wird nach Firebase-Laden gesetzt
+  // Braucht die App einen Login? Nur wenn eine Firebase-Config hinterlegt ist.
+  var NEEDS_AUTH = !!((window.HUB_FIREBASE_CONFIG || {}).projectId);
+  var SYNC = false;               // true, sobald eingeloggt + Firestore verbunden
+  var authState = NEEDS_AUTH ? "loading" : "in";  // loading | login | in
+  var authUser = null;
+  var loginErr = "";
+  var syncStarted = false;
 
   var uid = function(){ return Math.random().toString(36).slice(2,9); };
   function esc(s){ return String(s).replace(/[&<>"']/g, function(c){
@@ -297,8 +313,31 @@
     return h;
   }
 
+  /* ---------------------------- Login-Ansicht ------------------------- */
+  function viewLogin(){
+    return '<div class="gate">'
+      + '<div class="title">Haushaltsbuch</div>'
+      + '<p>Bitte anmelden, um die gemeinsamen Listen zu sehen.</p>'
+      + '<input id="login-email" class="inp" type="email" placeholder="E-Mail" autocomplete="username" data-enter="login" />'
+      + '<input id="login-pass" class="inp" type="password" placeholder="Passwort" autocomplete="current-password" data-enter="login" />'
+      + '<button class="primary" data-action="login">Anmelden</button>'
+      + '<div class="err">'+esc(loginErr)+'</div>'
+      + '</div>';
+  }
+
   /* ------------------------------- Render ----------------------------- */
   function render(){
+    var app = document.getElementById("app");
+
+    if(authState === "loading"){
+      app.innerHTML = '<div class="empty" style="text-align:center;margin-top:16vh">Verbinde …</div>';
+      return;
+    }
+    if(authState === "login"){
+      app.innerHTML = viewLogin();
+      return;
+    }
+
     var body = state.tab==="Einkauf" ? viewEinkauf()
              : state.tab==="Küche"   ? viewKueche()
              : viewTraining();
@@ -307,10 +346,12 @@
         + '<span class="n">'+String(i+1).padStart(2,"0")+'</span>'+esc(t)+'</button>';
     }).join("");
     var badge = SYNC ? '<span class="badge live">● live geteilt</span>' : '<span class="badge">○ lokal</span>';
-    document.getElementById("app").innerHTML =
+    var logout = (NEEDS_AUTH && authUser)
+      ? ' · <button class="logout" data-action="logout">abmelden</button>' : '';
+    app.innerHTML =
         '<header>'
       +   '<div class="title">Haushaltsbuch</div>'
-      +   '<div class="sub"><span>Andriy &amp; Anna · Wien</span>'+badge+'</div>'
+      +   '<div class="sub"><span>Andriy &amp; Anna · Wien</span>'+badge+logout+'</div>'
       + '</header>'
       + '<nav>'+nav+'</nav>'
       + '<div id="content">'+body+'</div>';
@@ -334,6 +375,21 @@
     var id = el.getAttribute("data-id");
     var key = el.getAttribute("data-key");
     var day = el.getAttribute("data-day");
+
+    if(a==="login"){
+      var em=(document.getElementById("login-email").value||"").trim();
+      var pw=(document.getElementById("login-pass").value||"");
+      if(!em || !pw){ loginErr="Bitte E-Mail und Passwort eingeben."; render(); return; }
+      loginErr=""; el.textContent="…"; el.disabled=true;
+      fbAuth.signInWithEmailAndPassword(em, pw).catch(function(e){
+        loginErr = (e && e.code==="auth/invalid-credential") ? "E-Mail oder Passwort falsch."
+                 : (e && e.code==="auth/too-many-requests") ? "Zu viele Versuche — kurz warten."
+                 : ("Anmeldung fehlgeschlagen: " + (e && e.message ? e.message : e));
+        render();
+      });
+      return;
+    }
+    if(a==="logout"){ if(fbAuth) fbAuth.signOut(); return; }
 
     if(a==="tab"){ state.tab = el.getAttribute("data-tab"); render(); return; }
 
@@ -434,21 +490,40 @@
   });
 
   /* ------------------------- Start + Firebase ------------------------- */
-  render(); // sofort sichtbar — keine Wartezeit, keine CDN-Abhaengigkeit
+  // Ohne Config: sofort die App (lokaler Modus). Mit Config: erst "Verbinde …",
+  // dann je nach Login entweder Login-Screen oder die App.
+  render();
 
-  // Firebase-Skripte laden mit defer; sobald bereit, optional Live-Sync starten.
+  function startSync(){
+    if(syncStarted || !fbDoc) return;
+    syncStarted = true;
+    fbDoc.onSnapshot(function(snap){
+      var d = snap.data();
+      if(!d){ fbDoc.set({shopping:state.shopping, kitchen:state.kitchen, training:state.training}); return; }
+      if(d.shopping){ state.shopping=d.shopping; lsSave("shopping",d.shopping); }
+      if(d.kitchen){  state.kitchen =d.kitchen;  lsSave("kitchen", d.kitchen); }
+      if(d.training){ state.training=d.training; lsSave("training",d.training); }
+      render();
+    }, function(err){ console.error("Sync-Fehler:", err); });
+  }
+
+  // Firebase-Skripte laden mit defer; nach 'load' verfuegbar.
   window.addEventListener("load", function(){
-    if(initFirebase()){
-      SYNC = true; render();
-      fbDoc.onSnapshot(function(snap){
-        var d = snap.data();
-        if(!d){ fbDoc.set({shopping:state.shopping, kitchen:state.kitchen, training:state.training}); return; }
-        if(d.shopping){ state.shopping=d.shopping; lsSave("shopping",d.shopping); }
-        if(d.kitchen){  state.kitchen =d.kitchen;  lsSave("kitchen", d.kitchen); }
-        if(d.training){ state.training=d.training; lsSave("training",d.training); }
-        render();
-      }, function(err){ console.error("Sync-Fehler:", err); });
+    if(!initFirebase()){
+      // Keine/ungueltige Config -> rein lokaler Modus, App laeuft bereits.
+      authState = "in"; SYNC = false; render();
+      return;
     }
+    // Login bleibt pro Geraet bestehen (Standard-Persistenz LOCAL).
+    fbAuth.onAuthStateChanged(function(user){
+      if(user){
+        authUser = user; authState = "in"; SYNC = true;
+        render(); startSync();
+      } else {
+        authUser = null; authState = "login"; SYNC = false;
+        render();
+      }
+    });
   });
 })();
 </script>
