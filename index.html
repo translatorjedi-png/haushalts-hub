@@ -415,6 +415,21 @@
       putKitchen(k);
       parts.push(clean.length+" Rezept"+(clean.length===1?"":"e"));
     }
+    // --- Wochenplan (Tag -> Rezeptname, case-insensitiv) ---
+    if(data.plan && typeof data.plan==="object"){
+      var k2=Object.assign({}, state.kitchen);
+      var byName={}; (k2.meals||[]).forEach(function(m){ byName[m.name.toLowerCase()]=m.id; });
+      var plan=Object.assign({}, k2.plan); var setN=0;
+      Object.keys(data.plan).forEach(function(d){
+        if(!(d in plan)) return;
+        var nm=data.plan[d];
+        if(nm==null||nm===""){ plan[d]=null; return; }
+        var pid=byName[String(nm).toLowerCase()];
+        if(pid){ plan[d]=pid; setN++; }
+      });
+      putKitchen(Object.assign({}, k2, { plan: plan }));
+      if(setN) parts.push("Wochenplan ("+setN+" Tage)");
+    }
     // --- Trainingsplan (ersetzt das Programm, Verlauf bleibt) ---
     if(data.training && data.training.program && typeof data.training.program==="object"){
       var prog = {};
