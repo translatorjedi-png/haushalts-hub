@@ -112,6 +112,12 @@
   .steps li{margin:3px 0;}
   textarea.inp{resize:vertical;width:100%;min-height:90px;font-family:var(--sans);}
   .okmsg{color:var(--done);}
+  .exitem{padding:4px 0 10px;}
+  .exitem + .exitem{border-top:1px dashed var(--line);}
+  .exmeta{display:flex;gap:14px;align-items:center;margin:4px 0 0 2px;}
+  .exen{color:var(--muted);font-size:12px;font-style:italic;}
+  .exlink{color:var(--accent);font-size:12px;text-decoration:none;}
+  .eximg{display:block;margin:8px 0 0;width:100%;max-width:200px;border-radius:8px;border:1px solid var(--line);background:#fff;}
 </style>
 </head>
 <body>
@@ -303,11 +309,20 @@
          +     '<button class="primary" data-action="log-session" data-key="'+key+'">Trainiert ✓</button>'
          +   '</div>';
       day.ex.forEach(function(e){
-        h += '<div class="exrow">'
-           +   '<input class="exname" value="'+esc(e.name)+'" data-edit="ex-name" data-key="'+key+'" data-exid="'+e.id+'" />'
-           +   '<input class="exscheme" value="'+esc(e.scheme)+'" data-edit="ex-scheme" data-key="'+key+'" data-exid="'+e.id+'" />'
-           +   '<button class="xbtn" data-action="ex-del" data-key="'+key+'" data-exid="'+e.id+'">×</button>'
-           + '</div>';
+        h += '<div class="exitem">'
+           +   '<div class="exrow">'
+           +     '<input class="exname" value="'+esc(e.name)+'" data-edit="ex-name" data-key="'+key+'" data-exid="'+e.id+'" />'
+           +     '<input class="exscheme" value="'+esc(e.scheme)+'" data-edit="ex-scheme" data-key="'+key+'" data-exid="'+e.id+'" />'
+           +     '<button class="xbtn" data-action="ex-del" data-key="'+key+'" data-exid="'+e.id+'">×</button>'
+           +   '</div>';
+        var meta=[];
+        if(e.en)   meta.push('<span class="exen">'+esc(e.en)+'</span>');
+        if(e.link) meta.push('<a class="exlink" href="'+esc(e.link)+'" target="_blank" rel="noopener">Video ▸</a>');
+        if(meta.length) h += '<div class="exmeta">'+meta.join('')+'</div>';
+        if(e.img) h += '<a href="'+esc(e.img)+'" target="_blank" rel="noopener">'
+                     +   '<img class="eximg" src="'+esc(e.img)+'" alt="'+esc(e.en||e.name)+'" loading="lazy" onerror="this.parentNode.style.display=\'none\'" />'
+                     + '</a>';
+        h += '</div>';
       });
       h += '<div class="row" style="margin-top:6px">'
          +   '<input id="ex-input-'+key+'" class="inp" style="padding:7px 8px" placeholder="Übung ergänzen" data-enter="ex-add" data-key="'+key+'" />'
@@ -438,7 +453,11 @@
         prog[key] = {
           label: String(d.label||("Tag "+key)),
           ex: (Array.isArray(d.ex)?d.ex:[]).map(function(e){
-            return { id:uid(), name:String(e.name||""), scheme:String(e.scheme||"3 × 10") };
+            var o={ id:uid(), name:String(e.name||""), scheme:String(e.scheme||"3 × 10") };
+            if(e.en)   o.en   = String(e.en);
+            if(e.img)  o.img  = String(e.img);
+            if(e.link) o.link = String(e.link);
+            return o;
           }),
         };
       });
