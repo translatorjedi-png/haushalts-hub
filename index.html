@@ -108,6 +108,10 @@
   .gate .primary{width:100%;padding:12px;font-size:15px;}
   .gate .err{color:#9B2C2C;font-size:13px;min-height:18px;margin:10px 0 0;}
   .logout{background:none;border:none;color:var(--muted);cursor:pointer;font-size:12px;text-decoration:underline;padding:0;}
+  .steps{margin:8px 0 2px;padding-left:20px;color:var(--ink);font-size:14px;line-height:1.55;}
+  .steps li{margin:3px 0;}
+  textarea.inp{resize:vertical;width:100%;min-height:90px;font-family:var(--sans);}
+  .okmsg{color:var(--done);}
 </style>
 </head>
 <body>
@@ -144,6 +148,7 @@
   var authState = NEEDS_AUTH ? "loading" : "in";  // loading | login | in
   var authUser = null;
   var loginErr = "";
+  var importMsg = "";
   var syncStarted = false;
 
   var uid = function(){ return Math.random().toString(36).slice(2,9); };
@@ -172,20 +177,19 @@
   };
   var SEED_TRAINING = {
     program: {
-      A: { label:"Tag A · Push", ex:[
-        { id:uid(), name:"Bankdrücken", scheme:"3 × 8–10" },
-        { id:uid(), name:"Schulterdrücken", scheme:"3 × 10" },
-        { id:uid(), name:"Trizeps", scheme:"3 × 12" },
-      ]},
-      B: { label:"Tag B · Pull", ex:[
-        { id:uid(), name:"Klimmzüge / Latzug", scheme:"3 × 8–10" },
-        { id:uid(), name:"Rudern", scheme:"3 × 10" },
-        { id:uid(), name:"Bizeps", scheme:"3 × 12" },
-      ]},
-      C: { label:"Tag C · Beine", ex:[
+      A: { label:"Tag A · Ganzkörper", ex:[
         { id:uid(), name:"Kniebeugen", scheme:"3 × 8–10" },
+        { id:uid(), name:"Bankdrücken / Liegestütz", scheme:"3 × 8–10" },
+        { id:uid(), name:"Rudern", scheme:"3 × 10" },
+        { id:uid(), name:"Schulterdrücken", scheme:"3 × 10" },
+        { id:uid(), name:"Plank", scheme:"3 × 30–45 s" },
+      ]},
+      B: { label:"Tag B · Ganzkörper", ex:[
         { id:uid(), name:"Kreuzheben / RDL", scheme:"3 × 8" },
-        { id:uid(), name:"Waden", scheme:"3 × 15" },
+        { id:uid(), name:"Schrägbankdrücken / Liegestütz", scheme:"3 × 8–10" },
+        { id:uid(), name:"Latzug / Klimmzüge", scheme:"3 × 8–10" },
+        { id:uid(), name:"Ausfallschritte", scheme:"3 × 10 je Bein" },
+        { id:uid(), name:"Bauch (Crunch / Beinheben)", scheme:"3 × 12" },
       ]},
     },
     log: [],
@@ -197,6 +201,7 @@
   /* ------------------------------- State ------------------------------ */
   var state = {
     tab: "Einkauf",
+    openMeal: null,
     shopping: lsLoad("shopping", SEED_SHOPPING),
     kitchen:  lsLoad("kitchen",  SEED_KITCHEN),
     training: lsLoad("training", SEED_TRAINING),
@@ -260,22 +265,37 @@
     h += '<ul class="list">' + meals.map(function(m){
       var tags = (m.tags&&m.tags.length) ? '<div style="margin-top:4px">'+m.tags.map(function(t){return '<span class="tag">'+esc(t)+'</span>';}).join("")+'</div>' : '';
       var ing  = (m.ing&&m.ing.length) ? '<div class="ing">'+m.ing.map(esc).join(" · ")+'</div>' : '';
+      var hasSteps = m.steps && m.steps.length;
+      var openNow = state.openMeal===m.id;
+      var stepsChip = hasSteps
+        ? '<button class="chip" data-action="meal-open" data-id="'+m.id+'">Zubereitung '+(openNow?'▴':'▾')+'</button>'
+        : '';
+      var stepsList = (hasSteps && openNow)
+        ? '<ol class="steps">'+m.steps.map(function(s){return '<li>'+esc(s)+'</li>';}).join("")+'</ol>'
+        : '';
       return '<li style="padding:12px 2px;border-bottom:1px solid var(--line)">'
         + '<div style="display:flex;align-items:baseline;gap:8px">'
         +   '<span class="mealname">'+esc(m.name)+'</span>'
+        +   stepsChip
         +   '<button class="chip" data-action="meal-to-shopping" data-id="'+m.id+'">→ Einkauf</button>'
         +   '<button class="xbtn" data-action="meal-del" data-id="'+m.id+'">×</button>'
-        + '</div>' + tags + ing
+        + '</div>' + tags + ing + stepsList
         + '</li>';
     }).join("") + '</ul>';
+
+    h += '<div class="subhead" style="margin-top:26px"><span>Import</span></div>';
+    h += '<div class="empty small">Fügt Rezepte &amp; Trainingsplan ein, die Claude für euch vorbereitet hat (JSON-Code einfügen → „Einfügen“). Wird automatisch zu Anya synchronisiert.</div>';
+    h += '<textarea id="import-box" class="inp" placeholder=\'{"meals":[…], "training":{…}}\'></textarea>';
+    h += '<div class="row" style="margin-top:8px"><button class="primary" data-action="import-apply">Einfügen</button></div>';
+    h += '<div class="empty small" id="import-msg">'+esc(importMsg)+'</div>';
     return h;
   }
 
   function viewTraining(){
     var t = state.training; var prog = t.program;
     var h = "";
-    h += '<div class="empty small">3-Tage-Split — Übungen sind frei editierbar. „Trainiert ✓“ trägt die Einheit mit Datum ein.</div>';
-    ["A","B","C"].forEach(function(key){
+    h += '<div class="empty small">Übungen sind frei editierbar. „Trainiert ✓“ trägt die Einheit mit Datum ein.</div>';
+    Object.keys(prog).forEach(function(key){
       var day = prog[key];
       h += '<div class="card">'
          +   '<div class="cardhead">'
@@ -368,6 +388,58 @@
     if(add.length){ putShopping(add.concat(state.shopping)); }
   }
 
+  // Importiert von Claude vorbereitete Rezepte/Trainingspläne. Tolerant:
+  // fehlende Felder werden ignoriert. Gibt eine kurze Erfolgsmeldung zurück.
+  function applyImport(data){
+    var parts = [];
+    // --- Rezepte ---
+    if(Array.isArray(data.meals) && data.meals.length){
+      var clean = data.meals.map(function(m){
+        return {
+          id: uid(),
+          name: String(m.name||"Unbenannt"),
+          tags: Array.isArray(m.tags) ? m.tags.map(String) : [],
+          ing:  Array.isArray(m.ing)  ? m.ing.map(String)  : [],
+          steps:Array.isArray(m.steps)? m.steps.map(String): [],
+        };
+      });
+      var k = Object.assign({}, state.kitchen);
+      if(data.replaceMeals){
+        k.meals = clean;
+        k.plan = { Mo:null, Di:null, Mi:null, Do:null, Fr:null, Sa:null, So:null };
+      } else {
+        var have = {}; (k.meals||[]).forEach(function(m){ have[m.name.toLowerCase()]=true; });
+        var fresh = clean.filter(function(m){ return !have[m.name.toLowerCase()]; });
+        k.meals = (k.meals||[]).concat(fresh);
+      }
+      putKitchen(k);
+      parts.push(clean.length+" Rezept"+(clean.length===1?"":"e"));
+    }
+    // --- Trainingsplan (ersetzt das Programm, Verlauf bleibt) ---
+    if(data.training && data.training.program && typeof data.training.program==="object"){
+      var prog = {};
+      Object.keys(data.training.program).forEach(function(key){
+        var d = data.training.program[key] || {};
+        prog[key] = {
+          label: String(d.label||("Tag "+key)),
+          ex: (Array.isArray(d.ex)?d.ex:[]).map(function(e){
+            return { id:uid(), name:String(e.name||""), scheme:String(e.scheme||"3 × 10") };
+          }),
+        };
+      });
+      putTraining(Object.assign({}, state.training, { program: prog }));
+      parts.push("Trainingsplan ("+Object.keys(prog).length+" Tage)");
+    }
+    // --- Optional: Einkaufsliste ergänzen ---
+    if(Array.isArray(data.shopping) && data.shopping.length){
+      var haveS = {}; (state.shopping||[]).forEach(function(s){ haveS[s.text.toLowerCase()]=true; });
+      var addS = data.shopping.map(String).filter(function(x){ return x && !haveS[x.toLowerCase()]; })
+                              .map(function(x){ return { id:uid(), text:x, done:false }; });
+      if(addS.length){ putShopping(addS.concat(state.shopping)); parts.push(addS.length+" Einkauf-Posten"); }
+    }
+    return parts.length ? ("Übernommen: "+parts.join(", ")+".") : "Nichts gefunden — Format prüfen.";
+  }
+
   document.getElementById("app").addEventListener("click", function(ev){
     var el = ev.target.closest("[data-action]");
     if(!el) return;
@@ -416,6 +488,23 @@
     }
     if(a==="meal-to-shopping"){ ingToShopping(findMeal(id)); render(); return; }
     if(a==="plan-to-shopping"){ ingToShopping(findMeal(state.kitchen.plan[day])); render(); return; }
+    if(a==="meal-open"){ state.openMeal = (state.openMeal===id ? null : id); render(); return; }
+
+    if(a==="import-apply"){
+      var box=document.getElementById("import-box"); var raw=(box?box.value:"").trim();
+      if(!raw){ importMsg="Bitte zuerst den Code einfügen."; var m0=document.getElementById("import-msg"); if(m0) m0.textContent=importMsg; return; }
+      var data;
+      try{ data=JSON.parse(raw); }
+      catch(e){
+        // Parse-Fehler: Meldung zeigen OHNE render(), damit der eingefügte Text bleibt.
+        importMsg="Konnte den Code nicht lesen (kein gültiges JSON).";
+        var m1=document.getElementById("import-msg"); if(m1) m1.textContent=importMsg;
+        return;
+      }
+      importMsg=applyImport(data);
+      render();
+      return;
+    }
 
     if(a==="log-session"){
       var entry={ id:uid(), day:state.training.program[key].label, date:new Date().toISOString() };
