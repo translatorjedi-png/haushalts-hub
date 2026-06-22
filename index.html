@@ -387,7 +387,7 @@
         if(e.link) meta.push('<a class="exlink" href="'+esc(e.link)+'" target="_blank" rel="noopener">Video ▸</a>');
         if(meta.length) h += '<div class="exmeta">'+meta.join('')+'</div>';
         if(e.img) h += '<a href="'+esc(e.img)+'" target="_blank" rel="noopener">'
-                     +   '<img class="eximg" src="'+esc(e.img)+'" alt="'+esc(e.en||e.name)+'" loading="lazy" onerror="this.parentNode.style.display=\'none\'" />'
+                     +   '<img class="eximg" src="'+esc(e.img)+'" alt="'+esc(e.en||e.name)+'" loading="eager" onerror="this.parentNode.style.display=\'none\'" />'
                      + '</a>';
         h += '</div>';
       });
