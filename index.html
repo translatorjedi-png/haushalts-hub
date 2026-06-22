@@ -241,12 +241,32 @@
   function putTraining(v){ state.training=v; lsSave("training",v); if(SYNC&&fbDoc) fbDoc.set({training:v},{merge:true}); }
   function putDayplan(v){  state.dayplan=v;  lsSave("dayplan",v);  if(SYNC&&fbDoc) fbDoc.set({dayplan:v},{merge:true}); }
 
+  // Lebensmittel-Schlüssel ohne Mengenangabe (zum Entdoppeln der Einkaufsliste).
+  function foodKey(s){ var t=String(s).toLowerCase().replace(/\(.*?\)/g," "); var i=t.search(/\s\d/); if(i>0) t=t.slice(0,i); return t.replace(/\s+/g," ").trim()||String(s).toLowerCase(); }
+  // Einkaufsliste aus den im Tagesplan gewählten Gerichten (entdoppelt nach Lebensmittel).
+  function shoppingFromChosen(){
+    var chosen = chosenDishNames(); var seen={}, out=[];
+    (state.kitchen.meals||[]).forEach(function(m){
+      if(!chosen[m.name.toLowerCase()]) return;
+      (m.ing||[]).forEach(function(x){
+        var key=foodKey(x); if(seen[key]) return; seen[key]=true;
+        out.push({ id:uid(), text:x, done:false });
+      });
+    });
+    return out;
+  }
+
   /* ------------------------------- Views ------------------------------ */
   function viewEinkauf(){
     var items = state.shopping || [];
     var open = items.filter(function(i){ return !i.done; });
     var done = items.filter(function(i){ return i.done; });
     var h = "";
+    var nChosen = Object.keys(chosenDishNames()).length;
+    if(nChosen>0){
+      h += '<button class="primary" data-action="shop-from-plan" style="width:100%;padding:12px">🛒 Einkaufsliste aus Tagesplan-Auswahl ('+nChosen+' Gerichte)</button>';
+      h += '<div class="empty small">Erstellt die Liste neu aus den Zutaten eurer gewählten Gerichte (ersetzt die aktuelle Liste).</div>';
+    }
     h += '<div class="row">'
        +   '<input id="shop-input" class="inp" placeholder="Was fehlt? z. B. Tomaten" data-enter="shop-add" />'
        +   '<button class="primary" data-action="shop-add">Hinzufügen</button>'
@@ -291,20 +311,6 @@
     var filter = state.kuecheFilter || (selMeals.length>0 ? "sel" : "all");
     var shown = filter==="sel" ? selMeals : meals;
     var h = "";
-    h += '<div class="subhead"><span>Wochenplan</span></div>';
-    h += '<div style="margin-bottom:24px">';
-    DAYS.forEach(function(d){
-      var opts = '<option value="">—</option>' + meals.map(function(m){
-        return '<option value="'+m.id+'"'+(k.plan[d]===m.id?' selected':'')+'>'+esc(m.name)+'</option>';
-      }).join("");
-      h += '<div class="planrow">'
-         +   '<span class="planday">'+d+'</span>'
-         +   '<select class="sel" data-action="plan-set" data-day="'+d+'">'+opts+'</select>'
-         +   (k.plan[d] ? '<button class="chip" data-action="plan-to-shopping" data-day="'+d+'">Zutaten → Einkauf</button>' : '')
-         + '</div>';
-    });
-    h += '</div>';
-
     h += '<div class="subhead"><span>Rezepte</span>'
        +   '<span class="kfilter">'
        +     '<button class="kfbtn'+(filter==="sel"?" on":"")+'" data-action="kueche-filter" data-f="sel">Ausgewählte ('+selMeals.length+')</button>'
@@ -642,6 +648,7 @@
     }
     if(a==="shop-del"){ putShopping(state.shopping.filter(function(i){return i.id!==id;})); render(); return; }
     if(a==="shop-clear-done"){ putShopping(state.shopping.filter(function(i){return !i.done;})); render(); return; }
+    if(a==="shop-from-plan"){ putShopping(shoppingFromChosen()); render(); return; }
 
     if(a==="meal-add"){
       var mi=document.getElementById("meal-input"); var mv=(mi.value||"").trim();
