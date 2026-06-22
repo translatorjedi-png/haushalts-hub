@@ -118,6 +118,21 @@
   .exen{color:var(--muted);font-size:12px;font-style:italic;}
   .exlink{color:var(--accent);font-size:12px;text-decoration:none;}
   .eximg{display:block;margin:8px 0 0;width:100%;max-width:200px;border-radius:8px;border:1px solid var(--line);background:#fff;}
+  .dpday{margin:18px 0 6px;}
+  .dpdayhd{font-family:var(--serif);font-size:20px;border-bottom:1px solid var(--line);padding-bottom:4px;margin-bottom:8px;}
+  .dpslot{margin:10px 0 14px;}
+  .dpslotlabel{font-size:12px;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-bottom:6px;}
+  .dpopt{display:block;width:100%;text-align:left;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:7px;cursor:pointer;color:var(--ink);}
+  .dpopt.on{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent);background:#F4F6FA;}
+  .dpopthd{display:flex;align-items:center;gap:8px;}
+  .dpname{font-weight:600;font-size:15px;flex:1;}
+  .dpfav{font-size:12px;color:#B5651D;white-space:nowrap;}
+  .dppick{font-size:12px;color:var(--accent);font-weight:600;white-space:nowrap;}
+  .dpport{display:flex;gap:16px;margin-top:5px;font-size:13px;}
+  .dpport .pa{color:#9C5BA0;}
+  .dpport .pb{color:var(--accent);}
+  .dpkcal{font-size:12px;color:var(--muted);margin-top:3px;}
+  #export-box{min-height:120px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;}
 </style>
 </head>
 <body>
@@ -160,6 +175,7 @@
   var uid = function(){ return Math.random().toString(36).slice(2,9); };
   function esc(s){ return String(s).replace(/[&<>"']/g, function(c){
     return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+  function slug(s){ return String(s).toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-+|-+$/g,"").slice(0,48) || "opt"; }
 
   /* ------------------------------- Seeds ------------------------------ */
   var SEED_SHOPPING = [
@@ -200,9 +216,11 @@
     },
     log: [],
   };
+  var SEED_DAYPLAN = { prefs:{}, days:{} };
 
-  var TABS = ["Einkauf","Küche","Training"];
+  var TABS = ["Einkauf","Tagesplan","Küche","Training"];
   var DAYS = ["Mo","Di","Mi","Do","Fr","Sa","So"];
+  var SLOTS = [ {k:"F",label:"Frühstück"}, {k:"M",label:"Mittag"}, {k:"S",label:"Snack"}, {k:"A",label:"Abend"} ];
 
   /* ------------------------------- State ------------------------------ */
   var state = {
@@ -211,11 +229,13 @@
     shopping: lsLoad("shopping", SEED_SHOPPING),
     kitchen:  lsLoad("kitchen",  SEED_KITCHEN),
     training: lsLoad("training", SEED_TRAINING),
+    dayplan:  lsLoad("dayplan",  SEED_DAYPLAN),
   };
 
   function putShopping(v){ state.shopping=v; lsSave("shopping",v); if(SYNC&&fbDoc) fbDoc.set({shopping:v},{merge:true}); }
   function putKitchen(v){  state.kitchen=v;  lsSave("kitchen",v);  if(SYNC&&fbDoc) fbDoc.set({kitchen:v},{merge:true}); }
   function putTraining(v){ state.training=v; lsSave("training",v); if(SYNC&&fbDoc) fbDoc.set({training:v},{merge:true}); }
+  function putDayplan(v){  state.dayplan=v;  lsSave("dayplan",v);  if(SYNC&&fbDoc) fbDoc.set({dayplan:v},{merge:true}); }
 
   /* ------------------------------- Views ------------------------------ */
   function viewEinkauf(){
@@ -348,6 +368,51 @@
     return h;
   }
 
+  function viewTagesplan(){
+    var dp = state.dayplan || { prefs:{}, days:{} };
+    var prefs = dp.prefs || {};
+    var days = dp.days || {};
+    var h = "";
+    h += '<div class="empty small">Tippe pro Mahlzeit deine Wahl an — die App merkt sich, was euch schmeckt (❤) und sortiert Favoriten nach oben. Portionen: <b style="color:#9C5BA0">A</b> = Anna, <b style="color:var(--accent)">D</b> = Andriy.</div>';
+    var hasContent = DAYS.some(function(d){
+      var day=days[d]; return day && SLOTS.some(function(s){ return day[s.k] && day[s.k].opts && day[s.k].opts.length; });
+    });
+    if(!hasContent){
+      h += '<div class="empty">Noch kein Tagesplan. Importiere einen in <b>Küche → Import</b> (Feld „dayplan").</div>';
+      return h;
+    }
+    DAYS.forEach(function(d){
+      var day = days[d]; if(!day) return;
+      var hasAny = SLOTS.some(function(s){ return day[s.k] && day[s.k].opts && day[s.k].opts.length; });
+      if(!hasAny) return;
+      h += '<div class="dpday"><div class="dpdayhd">'+d+'</div>';
+      SLOTS.forEach(function(s){
+        var slot = day[s.k]; if(!slot || !slot.opts || !slot.opts.length) return;
+        h += '<div class="dpslot"><div class="dpslotlabel">'+esc(s.label)+'</div>';
+        var opts = slot.opts.slice().sort(function(x,y){ return (prefs[y.key]||0)-(prefs[x.key]||0); });
+        opts.forEach(function(o){
+          var chosen = slot.pick===o.key;
+          var fav = prefs[o.key]||0;
+          h += '<button class="dpopt'+(chosen?' on':'')+'" data-action="plan-pick" data-day="'+d+'" data-slot="'+s.k+'" data-key="'+esc(o.key)+'">'
+             +   '<div class="dpopthd"><span class="dpname">'+esc(o.name)+'</span>'
+             +     (fav?'<span class="dpfav">❤ '+fav+'</span>':'')
+             +     (chosen?'<span class="dppick">✓ gewählt</span>':'')
+             +   '</div>'
+             +   '<div class="dpport"><span class="pa">A: '+esc(o.a||'—')+'</span><span class="pb">D: '+esc(o.b||'—')+'</span></div>'
+             +   (o.kcal?'<div class="dpkcal">'+esc(o.kcal)+'</div>':'')
+             + '</button>';
+        });
+        h += '</div>';
+      });
+      h += '</div>';
+    });
+    h += '<div class="subhead" style="margin-top:24px"><span>Vorlieben</span></div>';
+    h += '<div class="empty small">Schick mir diesen Code zurück, dann gewichte ich den nächsten Plan nach euren Favoriten.</div>';
+    h += '<button class="primary" data-action="plan-export">Favoriten exportieren</button>';
+    h += '<textarea id="export-box" class="inp" readonly style="margin-top:8px" placeholder="Hier erscheint dein Export …"></textarea>';
+    return h;
+  }
+
   /* ---------------------------- Login-Ansicht ------------------------- */
   function viewLogin(){
     return '<div class="gate">'
@@ -373,8 +438,9 @@
       return;
     }
 
-    var body = state.tab==="Einkauf" ? viewEinkauf()
-             : state.tab==="Küche"   ? viewKueche()
+    var body = state.tab==="Einkauf"   ? viewEinkauf()
+             : state.tab==="Tagesplan" ? viewTagesplan()
+             : state.tab==="Küche"     ? viewKueche()
              : viewTraining();
     var nav = TABS.map(function(t,i){
       return '<button class="tab'+(state.tab===t?' active':'')+'" data-action="tab" data-tab="'+t+'">'
@@ -464,6 +530,32 @@
       putTraining(Object.assign({}, state.training, { program: prog }));
       parts.push("Trainingsplan ("+Object.keys(prog).length+" Tage)");
     }
+    // --- Tagesplan (Frühstück/Mittag/Snack/Abend mit Alternativen) ---
+    if(data.dayplan && typeof data.dayplan==="object"){
+      var dp = Object.assign({ prefs:{}, days:{} }, state.dayplan||{});
+      if(!dp.prefs) dp.prefs={};
+      var newDays = Object.assign({}, dp.days||{});
+      var dcount=0;
+      Object.keys(data.dayplan).forEach(function(d){
+        if(d==="prefs") return;
+        var slots = data.dayplan[d] || {};
+        var dayObj = {};
+        SLOTS.forEach(function(s){
+          var arr = slots[s.k];
+          if(Array.isArray(arr) && arr.length){
+            dayObj[s.k] = { opts: arr.map(function(o){
+              var name=String(o.name||"");
+              return { key:String(o.key||slug(name)), name:name, a:String(o.a||""), b:String(o.b||""), kcal:o.kcal?String(o.kcal):"" };
+            }), pick:null };
+          }
+        });
+        if(Object.keys(dayObj).length){ newDays[d]=dayObj; dcount++; }
+      });
+      dp.days = newDays;
+      if(data.dayplan.prefs && typeof data.dayplan.prefs==="object"){ dp.prefs = Object.assign({}, dp.prefs, data.dayplan.prefs); }
+      putDayplan(dp);
+      if(dcount) parts.push("Tagesplan ("+dcount+" Tage)");
+    }
     // --- Optional: Einkaufsliste ergänzen ---
     if(Array.isArray(data.shopping) && data.shopping.length){
       var haveS = {}; (state.shopping||[]).forEach(function(s){ haveS[s.text.toLowerCase()]=true; });
@@ -523,6 +615,33 @@
     if(a==="meal-to-shopping"){ ingToShopping(findMeal(id)); render(); return; }
     if(a==="plan-to-shopping"){ ingToShopping(findMeal(state.kitchen.plan[day])); render(); return; }
     if(a==="meal-open"){ state.openMeal = (state.openMeal===id ? null : id); render(); return; }
+
+    if(a==="plan-pick"){
+      var slotK=el.getAttribute("data-slot"); var optKey=el.getAttribute("data-key");
+      var dp=JSON.parse(JSON.stringify(state.dayplan||{prefs:{},days:{}}));
+      if(!dp.prefs) dp.prefs={}; if(!dp.days) dp.days={};
+      var slot=dp.days[day] && dp.days[day][slotK];
+      if(slot){
+        if(slot.pick!==optKey){ dp.prefs[optKey]=(dp.prefs[optKey]||0)+1; slot.pick=optKey; }
+        else { slot.pick=null; }   // erneutes Tippen = abwählen
+        putDayplan(dp); render();
+      }
+      return;
+    }
+    if(a==="plan-export"){
+      var edp=state.dayplan||{prefs:{},days:{}}; var eprefs=edp.prefs||{};
+      var picks=[];
+      DAYS.forEach(function(d){ var dy=edp.days&&edp.days[d]; if(!dy) return;
+        SLOTS.forEach(function(s){ var sl=dy[s.k]; if(sl&&sl.pick){
+          var o=(sl.opts||[]).find(function(x){return x.key===sl.pick;});
+          picks.push(d+" "+s.label+": "+(o?o.name:sl.pick));
+        }});
+      });
+      var fav=Object.keys(eprefs).map(function(k){return {gericht:k,gewaehlt:eprefs[k]};}).sort(function(x,y){return y.gewaehlt-x.gewaehlt;});
+      var out=JSON.stringify({favoriten:fav, auswahl_diese_woche:picks}, null, 2);
+      var ebox=document.getElementById("export-box"); if(ebox){ ebox.value=out; ebox.focus(); if(ebox.select) ebox.select(); }
+      return;
+    }
 
     if(a==="import-apply"){
       var box=document.getElementById("import-box"); var raw=(box?box.value:"").trim();
@@ -610,6 +729,7 @@
     if(e.key===LS+"shopping" && e.newValue){ state.shopping=JSON.parse(e.newValue); render(); }
     if(e.key===LS+"kitchen"  && e.newValue){ state.kitchen =JSON.parse(e.newValue); render(); }
     if(e.key===LS+"training" && e.newValue){ state.training=JSON.parse(e.newValue); render(); }
+    if(e.key===LS+"dayplan"  && e.newValue){ state.dayplan =JSON.parse(e.newValue); render(); }
   });
 
   /* ------------------------- Start + Firebase ------------------------- */
@@ -622,10 +742,11 @@
     syncStarted = true;
     fbDoc.onSnapshot(function(snap){
       var d = snap.data();
-      if(!d){ fbDoc.set({shopping:state.shopping, kitchen:state.kitchen, training:state.training}); return; }
+      if(!d){ fbDoc.set({shopping:state.shopping, kitchen:state.kitchen, training:state.training, dayplan:state.dayplan}); return; }
       if(d.shopping){ state.shopping=d.shopping; lsSave("shopping",d.shopping); }
       if(d.kitchen){  state.kitchen =d.kitchen;  lsSave("kitchen", d.kitchen); }
       if(d.training){ state.training=d.training; lsSave("training",d.training); }
+      if(d.dayplan){  state.dayplan =d.dayplan;  lsSave("dayplan", d.dayplan); }
       render();
     }, function(err){ console.error("Sync-Fehler:", err); });
   }
