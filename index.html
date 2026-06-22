@@ -133,6 +133,9 @@
   .dpport .pb{color:var(--accent);}
   .dpkcal{font-size:12px;color:var(--muted);margin-top:3px;}
   #export-box{min-height:120px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;}
+  .kfilter{display:inline-flex;gap:4px;}
+  .kfbtn{background:transparent;border:1px solid var(--line);border-radius:999px;padding:3px 10px;font-size:11px;color:var(--muted);cursor:pointer;text-transform:none;letter-spacing:0;}
+  .kfbtn.on{background:var(--accent);color:#fff;border-color:var(--accent);}
 </style>
 </head>
 <body>
@@ -226,6 +229,7 @@
   var state = {
     tab: "Einkauf",
     openMeal: null,
+    kuecheFilter: null,
     shopping: lsLoad("shopping", SEED_SHOPPING),
     kitchen:  lsLoad("kitchen",  SEED_KITCHEN),
     training: lsLoad("training", SEED_TRAINING),
@@ -266,8 +270,26 @@
       + '</li>';
   }
 
+  // Namen der im Tagesplan ausgewählten Gerichte (klein geschrieben).
+  function chosenDishNames(){
+    var set = {}; var dp = state.dayplan || {}; var days = dp.days || {};
+    DAYS.forEach(function(d){
+      var day = days[d]; if(!day) return;
+      SLOTS.forEach(function(s){
+        var slot = day[s.k]; if(!slot || !slot.pick) return;
+        var o = (slot.opts||[]).find(function(x){ return x.key===slot.pick; });
+        if(o && o.name) set[o.name.toLowerCase()] = true;
+      });
+    });
+    return set;
+  }
+
   function viewKueche(){
     var k = state.kitchen; var meals = k.meals || [];
+    var chosen = chosenDishNames();
+    var selMeals = meals.filter(function(m){ return chosen[m.name.toLowerCase()]; });
+    var filter = state.kuecheFilter || (selMeals.length>0 ? "sel" : "all");
+    var shown = filter==="sel" ? selMeals : meals;
     var h = "";
     h += '<div class="subhead"><span>Wochenplan</span></div>';
     h += '<div style="margin-bottom:24px">';
@@ -283,12 +305,31 @@
     });
     h += '</div>';
 
-    h += '<div class="subhead"><span>Rezepte ('+meals.length+')</span></div>';
-    h += '<div class="row">'
-       +   '<input id="meal-input" class="inp" placeholder="Neues Gericht" data-enter="meal-add" />'
-       +   '<button class="primary" data-action="meal-add">Hinzufügen</button>'
+    h += '<div class="subhead"><span>Rezepte</span>'
+       +   '<span class="kfilter">'
+       +     '<button class="kfbtn'+(filter==="sel"?" on":"")+'" data-action="kueche-filter" data-f="sel">Ausgewählte ('+selMeals.length+')</button>'
+       +     '<button class="kfbtn'+(filter==="all"?" on":"")+'" data-action="kueche-filter" data-f="all">Alle ('+meals.length+')</button>'
+       +   '</span>'
        + '</div>';
-    h += '<ul class="list">' + meals.map(function(m){
+    if(filter==="sel"){
+      h += '<div class="empty small">Nur die Gerichte, die ihr im Tab <b>Tagesplan</b> angetippt habt.</div>';
+    }
+    if(filter==="all"){
+      h += '<div class="row">'
+         +   '<input id="meal-input" class="inp" placeholder="Neues Gericht" data-enter="meal-add" />'
+         +   '<button class="primary" data-action="meal-add">Hinzufügen</button>'
+         + '</div>';
+    }
+    if(filter==="sel" && shown.length===0){
+      h += '<div class="empty">Noch keine Gerichte im Tagesplan gewählt. Geh auf <b>Tagesplan</b> und tippe deine Mahlzeiten an — oder zeig oben „Alle".</div>';
+      h += '<div class="subhead" style="margin-top:26px"><span>Import</span></div>';
+      h += '<div class="empty small">Fügt Rezepte &amp; Trainingsplan ein, die Claude für euch vorbereitet hat (JSON-Code einfügen → „Einfügen“). Wird automatisch zu Anya synchronisiert.</div>';
+      h += '<textarea id="import-box" class="inp" placeholder=\'{"meals":[…], "training":{…}}\'></textarea>';
+      h += '<div class="row" style="margin-top:8px"><button class="primary" data-action="import-apply">Einfügen</button></div>';
+      h += '<div class="empty small" id="import-msg">'+esc(importMsg)+'</div>';
+      return h;
+    }
+    h += '<ul class="list">' + shown.map(function(m){
       var tags = (m.tags&&m.tags.length) ? '<div style="margin-top:4px">'+m.tags.map(function(t){return '<span class="tag">'+esc(t)+'</span>';}).join("")+'</div>' : '';
       var ing  = (m.ing&&m.ing.length) ? '<div class="ing">'+m.ing.map(esc).join(" · ")+'</div>' : '';
       var hasSteps = m.steps && m.steps.length;
@@ -615,6 +656,7 @@
     if(a==="meal-to-shopping"){ ingToShopping(findMeal(id)); render(); return; }
     if(a==="plan-to-shopping"){ ingToShopping(findMeal(state.kitchen.plan[day])); render(); return; }
     if(a==="meal-open"){ state.openMeal = (state.openMeal===id ? null : id); render(); return; }
+    if(a==="kueche-filter"){ state.kuecheFilter = el.getAttribute("data-f"); render(); return; }
 
     if(a==="plan-pick"){
       var slotK=el.getAttribute("data-slot"); var optKey=el.getAttribute("data-key");
