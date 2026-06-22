@@ -265,7 +265,9 @@
     var nChosen = Object.keys(chosenDishNames()).length;
     if(nChosen>0){
       h += '<button class="primary" data-action="shop-from-plan" style="width:100%;padding:12px">🛒 Einkaufsliste aus Tagesplan-Auswahl ('+nChosen+' Gerichte)</button>';
-      h += '<div class="empty small">Erstellt die Liste neu aus den Zutaten eurer gewählten Gerichte (ersetzt die aktuelle Liste).</div>';
+      h += '<div class="empty small">Tippen → erstellt die Liste neu aus den Zutaten eurer im Tagesplan gewählten Gerichte (ersetzt die aktuelle Liste).</div>';
+    } else {
+      h += '<div class="empty small">💡 Wähle im Tab <b>Tagesplan</b> eure Gerichte aus — dann erscheint hier ein Knopf, der die Einkaufsliste automatisch aus deren Zutaten erstellt.</div>';
     }
     h += '<div class="row">'
        +   '<input id="shop-input" class="inp" placeholder="Was fehlt? z. B. Tomaten" data-enter="shop-add" />'
