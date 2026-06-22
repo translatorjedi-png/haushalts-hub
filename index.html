@@ -386,8 +386,8 @@
         if(e.en)   meta.push('<span class="exen">'+esc(e.en)+'</span>');
         if(e.link) meta.push('<a class="exlink" href="'+esc(e.link)+'" target="_blank" rel="noopener">Video ▸</a>');
         if(meta.length) h += '<div class="exmeta">'+meta.join('')+'</div>';
-        if(e.img) h += '<a href="'+esc(e.img)+'" target="_blank" rel="noopener">'
-                     +   '<img class="eximg" src="'+esc(e.img)+'" alt="'+esc(e.en||e.name)+'" loading="eager" onerror="this.parentNode.style.display=\'none\'" />'
+        if(e.img) h += '<a href="'+esc(e.img2||e.img)+'" target="_blank" rel="noopener">'
+                     +   '<img class="eximg" src="'+esc(e.img)+'" data-f0="'+esc(e.img)+'"'+(e.img2?' data-f1="'+esc(e.img2)+'" data-fr="0"':'')+' alt="'+esc(e.en||e.name)+'" loading="eager" onerror="this.parentNode.style.display=\'none\'" />'
                      + '</a>';
         h += '</div>';
       });
@@ -569,6 +569,7 @@
             var o={ id:uid(), name:String(e.name||""), scheme:String(e.scheme||"3 × 10") };
             if(e.en)   o.en   = String(e.en);
             if(e.img)  o.img  = String(e.img);
+            if(e.img2) o.img2 = String(e.img2);
             if(e.link) o.link = String(e.link);
             return o;
           }),
@@ -798,6 +799,21 @@
       if(d.dayplan){  state.dayplan =d.dayplan;  lsSave("dayplan", d.dayplan); }
       render();
     }, function(err){ console.error("Sync-Fehler:", err); });
+  }
+
+  // Übungsbilder als 2-Phasen-Animation (Start/Ende) — zeigt die Bewegung,
+  // ganz ohne Video. Läuft nur, wenn der Trainings-Tab Bilder zeigt.
+  if(!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches)){
+    setInterval(function(){
+      var imgs = document.querySelectorAll("img.eximg[data-f1]");
+      for(var i=0;i<imgs.length;i++){
+        var im = imgs[i];
+        var fr = im.getAttribute("data-fr")==="1" ? "0" : "1";
+        im.setAttribute("data-fr", fr);
+        var u = im.getAttribute("data-f"+fr);
+        if(u) im.src = u;
+      }
+    }, 900);
   }
 
   // Firebase-Skripte laden mit defer; nach 'load' verfuegbar.
