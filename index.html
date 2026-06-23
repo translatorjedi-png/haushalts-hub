@@ -117,6 +117,9 @@
   .exmeta{display:flex;gap:14px;align-items:center;margin:4px 0 0 2px;}
   .exen{color:var(--muted);font-size:12px;font-style:italic;}
   .exlink{color:var(--accent);font-size:12px;text-decoration:none;}
+  .exlk,.exdk{background:transparent;border:1px solid var(--line);border-radius:999px;padding:2px 9px;font-size:13px;cursor:pointer;line-height:1.4;opacity:.55;}
+  .exlk.on{background:#EFF3EA;border-color:var(--done);opacity:1;}
+  .exdk.on{background:#FBECEC;border-color:#C98A8A;opacity:1;}
   .eximg{display:block;margin:8px 0 0;width:100%;max-width:200px;border-radius:8px;border:1px solid var(--line);background:#fff;}
   .dpday{margin:18px 0 6px;}
   .dpdayhd{font-family:var(--serif);font-size:20px;border-bottom:1px solid var(--line);padding-bottom:4px;margin-bottom:8px;}
@@ -218,6 +221,7 @@
       ]},
     },
     log: [],
+    prefs: {},
   };
   var SEED_DAYPLAN = { prefs:{}, days:{} };
 
@@ -310,8 +314,9 @@
     var h = "";
     h += '<div class="subhead" style="margin-top:26px"><span>Import</span></div>';
     h += '<div class="empty small">Fertige Pakete von Claude — einfach laden (kein Einfügen nötig):</div>';
-    h += '<div class="row"><button class="chip" data-action="load-pack" data-pack="rezepte">📥 Rezepte laden</button>'
-       +   '<button class="chip" data-action="load-pack" data-pack="wochenplan">📥 Tagesplan laden</button></div>';
+    h += '<div class="row" style="flex-wrap:wrap"><button class="chip" data-action="load-pack" data-pack="rezepte">📥 Rezepte laden</button>'
+       +   '<button class="chip" data-action="load-pack" data-pack="wochenplan">📥 Tagesplan laden</button>'
+       +   '<button class="chip" data-action="load-pack" data-pack="training">📥 Training laden</button></div>';
     h += '<div class="empty small" style="margin-top:10px">Oder eigenen Code einfügen:</div>';
     h += '<textarea id="import-box" class="inp" placeholder=\'{"meals":[…], "training":{…}}\'></textarea>';
     h += '<div class="row" style="margin-top:8px"><button class="primary" data-action="import-apply">Einfügen</button></div>';
@@ -389,10 +394,12 @@
            +     '<input class="exscheme" value="'+esc(e.scheme)+'" data-edit="ex-scheme" data-key="'+key+'" data-exid="'+e.id+'" />'
            +     '<button class="xbtn" data-action="ex-del" data-key="'+key+'" data-exid="'+e.id+'">×</button>'
            +   '</div>';
-        var meta=[];
-        if(e.en)   meta.push('<span class="exen">'+esc(e.en)+'</span>');
-        if(e.link) meta.push('<a class="exlink" href="'+esc(e.link)+'" target="_blank" rel="noopener">Video ▸</a>');
-        if(meta.length) h += '<div class="exmeta">'+meta.join('')+'</div>';
+        var liked = (t.prefs||{})[e.name.toLowerCase()]||0;
+        var meta = '';
+        if(e.en) meta += '<span class="exen">'+esc(e.en)+'</span>';
+        meta += '<button class="exlk'+(liked===1?' on':'')+'" data-action="ex-like" data-name="'+esc(e.name)+'" aria-label="gefällt mir">👍</button>';
+        meta += '<button class="exdk'+(liked===-1?' on':'')+'" data-action="ex-dislike" data-name="'+esc(e.name)+'" aria-label="gefällt mir nicht">👎</button>';
+        h += '<div class="exmeta">'+meta+'</div>';
         if(e.img) h += '<a href="'+esc(e.img2||e.img)+'" target="_blank" rel="noopener">'
                      +   '<img class="eximg" src="'+esc(e.img)+'" data-f0="'+esc(e.img)+'"'+(e.img2?' data-f1="'+esc(e.img2)+'" data-fr="0"':'')+' alt="'+esc(e.en||e.name)+'" loading="eager" onerror="this.parentNode.style.display=\'none\'" />'
                      + '</a>';
@@ -695,7 +702,9 @@
         }});
       });
       var fav=Object.keys(eprefs).map(function(k){return {gericht:k,gewaehlt:eprefs[k]};}).sort(function(x,y){return y.gewaehlt-x.gewaehlt;});
-      var out=JSON.stringify({favoriten:fav, auswahl_diese_woche:picks}, null, 2);
+      var tprefs=(state.training&&state.training.prefs)||{}; var tlike=[],tdis=[];
+      Object.keys(tprefs).forEach(function(k){ if(tprefs[k]>0) tlike.push(k); else if(tprefs[k]<0) tdis.push(k); });
+      var out=JSON.stringify({favoriten:fav, auswahl_diese_woche:picks, training_gefaellt:tlike, training_gefaellt_nicht:tdis}, null, 2);
       var ebox=document.getElementById("export-box"); if(ebox){ ebox.value=out; ebox.focus(); if(ebox.select) ebox.select(); }
       return;
     }
@@ -709,7 +718,8 @@
         .catch(function(e){
           importMsg="Konnte das Paket nicht laden ("+(e&&e.message?e.message:e)+").";
           var mm=document.getElementById("import-msg"); if(mm) mm.textContent=importMsg;
-          el.textContent=(pack==="rezepte"?"📥 Rezepte laden":"📥 Tagesplan laden"); el.disabled=false;
+          var lbl={rezepte:"📥 Rezepte laden",wochenplan:"📥 Tagesplan laden",training:"📥 Training laden"};
+          el.textContent=lbl[pack]||"📥 laden"; el.disabled=false;
         });
       return;
     }
@@ -747,6 +757,13 @@
       var exid=el.getAttribute("data-exid"); var d2=state.training.program[key];
       var prog2=Object.assign({},state.training.program); prog2[key]=Object.assign({},d2,{ex:d2.ex.filter(function(e){return e.id!==exid;})});
       putTraining(Object.assign({},state.training,{program:prog2})); render(); return;
+    }
+    if(a==="ex-like" || a==="ex-dislike"){
+      var lnm=(el.getAttribute("data-name")||"").toLowerCase(); var lval=a==="ex-like"?1:-1;
+      var lprefs=Object.assign({}, state.training.prefs||{});
+      lprefs[lnm] = (lprefs[lnm]===lval ? 0 : lval);
+      if(!lprefs[lnm]) delete lprefs[lnm];
+      putTraining(Object.assign({}, state.training, { prefs:lprefs })); render(); return;
     }
   });
 
