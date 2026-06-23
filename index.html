@@ -306,6 +306,19 @@
     return set;
   }
 
+  function importSection(){
+    var h = "";
+    h += '<div class="subhead" style="margin-top:26px"><span>Import</span></div>';
+    h += '<div class="empty small">Fertige Pakete von Claude — einfach laden (kein Einfügen nötig):</div>';
+    h += '<div class="row"><button class="chip" data-action="load-pack" data-pack="rezepte">📥 Rezepte laden</button>'
+       +   '<button class="chip" data-action="load-pack" data-pack="wochenplan">📥 Tagesplan laden</button></div>';
+    h += '<div class="empty small" style="margin-top:10px">Oder eigenen Code einfügen:</div>';
+    h += '<textarea id="import-box" class="inp" placeholder=\'{"meals":[…], "training":{…}}\'></textarea>';
+    h += '<div class="row" style="margin-top:8px"><button class="primary" data-action="import-apply">Einfügen</button></div>';
+    h += '<div class="empty small" id="import-msg">'+esc(importMsg)+'</div>';
+    return h;
+  }
+
   function viewKueche(){
     var k = state.kitchen; var meals = k.meals || [];
     var chosen = chosenDishNames();
@@ -330,11 +343,7 @@
     }
     if(filter==="sel" && shown.length===0){
       h += '<div class="empty">Noch keine Gerichte im Tagesplan gewählt. Geh auf <b>Tagesplan</b> und tippe deine Mahlzeiten an — oder zeig oben „Alle".</div>';
-      h += '<div class="subhead" style="margin-top:26px"><span>Import</span></div>';
-      h += '<div class="empty small">Fügt Rezepte &amp; Trainingsplan ein, die Claude für euch vorbereitet hat (JSON-Code einfügen → „Einfügen“). Wird automatisch zu Anya synchronisiert.</div>';
-      h += '<textarea id="import-box" class="inp" placeholder=\'{"meals":[…], "training":{…}}\'></textarea>';
-      h += '<div class="row" style="margin-top:8px"><button class="primary" data-action="import-apply">Einfügen</button></div>';
-      h += '<div class="empty small" id="import-msg">'+esc(importMsg)+'</div>';
+      h += importSection();
       return h;
     }
     h += '<ul class="list">' + shown.map(function(m){
@@ -358,11 +367,7 @@
         + '</li>';
     }).join("") + '</ul>';
 
-    h += '<div class="subhead" style="margin-top:26px"><span>Import</span></div>';
-    h += '<div class="empty small">Fügt Rezepte &amp; Trainingsplan ein, die Claude für euch vorbereitet hat (JSON-Code einfügen → „Einfügen“). Wird automatisch zu Anya synchronisiert.</div>';
-    h += '<textarea id="import-box" class="inp" placeholder=\'{"meals":[…], "training":{…}}\'></textarea>';
-    h += '<div class="row" style="margin-top:8px"><button class="primary" data-action="import-apply">Einfügen</button></div>';
-    h += '<div class="empty small" id="import-msg">'+esc(importMsg)+'</div>';
+    h += importSection();
     return h;
   }
 
@@ -692,6 +697,20 @@
       var fav=Object.keys(eprefs).map(function(k){return {gericht:k,gewaehlt:eprefs[k]};}).sort(function(x,y){return y.gewaehlt-x.gewaehlt;});
       var out=JSON.stringify({favoriten:fav, auswahl_diese_woche:picks}, null, 2);
       var ebox=document.getElementById("export-box"); if(ebox){ ebox.value=out; ebox.focus(); if(ebox.select) ebox.select(); }
+      return;
+    }
+
+    if(a==="load-pack"){
+      var pack=el.getAttribute("data-pack");
+      el.textContent="… lädt"; el.disabled=true;
+      fetch("packs/"+pack+".json?cb="+Date.now())
+        .then(function(r){ if(!r.ok) throw new Error("HTTP "+r.status); return r.json(); })
+        .then(function(data){ importMsg=applyImport(data); render(); })
+        .catch(function(e){
+          importMsg="Konnte das Paket nicht laden ("+(e&&e.message?e.message:e)+").";
+          var mm=document.getElementById("import-msg"); if(mm) mm.textContent=importMsg;
+          el.textContent=(pack==="rezepte"?"📥 Rezepte laden":"📥 Tagesplan laden"); el.disabled=false;
+        });
       return;
     }
 
