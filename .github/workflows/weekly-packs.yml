@@ -18,6 +18,18 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - name: Favoriten aus Firestore holen (falls eingerichtet)
+        env:
+          FIREBASE_SA: ${{ secrets.FIREBASE_SA }}
+        run: |
+          if [ -n "$FIREBASE_SA" ]; then
+            printf '%s' "$FIREBASE_SA" > sa.json
+            pip install --quiet firebase-admin
+            python packs/fetch_likes.py sa.json || echo "Favoriten-Abruf uebersprungen."
+            rm -f sa.json
+          else
+            echo "Kein FIREBASE_SA-Secret -> nur Rotation (ohne Favoriten)."
+          fi
       - name: Pakete neu erzeugen
         run: python packs/generate.py
       - name: Committen, falls geändert

@@ -142,34 +142,55 @@ def load_likes():
         except Exception: return {}
     return {}
 
-def apply_prefs(pool, boost, drop, keyname="name"):
+def drop_only(pool, drop):
     drop=set(x.lower() for x in drop)
-    kept=[x for x in pool if x[keyname].lower() not in drop]
-    boost=[x.lower() for x in boost]
-    kept.sort(key=lambda x: 0 if x[keyname].lower() in boost else 1)
+    kept=[x for x in pool if x["name"].lower() not in drop]
     return kept or pool   # nie ganz leer
 
-def rot(pool, day_idx, k=4):
-    n=len(pool); s=(WEEK*7 + day_idx*3) % n
-    return [pool[(s+j)%n] for j in range(min(k,n))]
+def pick_with_boost(pool, boost, day_idx, k=4):
+    """Garantiert: 1-2 gelikte Optionen sind dabei, Rest per Wochen-Rotation."""
+    bset=set(x.lower() for x in boost)
+    boosted=[x for x in pool if x["name"].lower() in bset]
+    rest=[x for x in pool if x["name"].lower() not in bset]
+    out=[]
+    if boosted:
+        nb=min(2, len(boosted), max(1,k-2))
+        bs=(WEEK+day_idx)%len(boosted)
+        for j in range(nb): out.append(boosted[(bs+j)%len(boosted)])
+    src=rest if rest else pool
+    n=len(src); s=(WEEK*7 + day_idx*3) % n; j=0
+    while len(out)<k and j<3*n:
+        c=src[(s+j)%n]; j+=1
+        if c not in out: out.append(c)
+    j=0
+    while len(out)<k and j<len(pool):
+        if pool[j] not in out: out.append(pool[j])
+        j+=1
+    return out[:k]
 
 def main():
     likes=load_likes()
     bm=likes.get("boost_meals",[]); dm=likes.get("drop_meals",[])
     bx=likes.get("boost_ex",[]);    dx=likes.get("drop_ex",[])
-    BF=apply_prefs(BREAKFAST,bm,dm); LU=apply_prefs(LUNCH,bm,dm)
-    SN=apply_prefs(SNACK,bm,dm);     DI=apply_prefs(DINNER,bm,dm)
-    home=apply_prefs(HOME_POOL,bx,dx)
+    BF=drop_only(BREAKFAST,dm); LU=drop_only(LUNCH,dm)
+    SN=drop_only(SNACK,dm);     DI=drop_only(DINNER,dm)
     dayplan={}
     for i,d in enumerate(DAYS):
-        dayplan[d]={"F":rot(BF,i),"M":rot(LU,i),"S":rot(SN,i),"A":rot(DI,i)}
-    # Home-Bauch rotiert wöchentlich aus dem Pool; Gym bleibt stabil (Progression)
-    hs=(WEEK*4)%len(home)
-    homeA=[home[(hs+j)%len(home)] for j in range(4)]
-    homeB=[home[(hs+4+j)%len(home)] for j in range(4)]
+        dayplan[d]={"F":pick_with_boost(BF,bm,i),"M":pick_with_boost(LU,bm,i),
+                    "S":pick_with_boost(SN,bm,i),"A":pick_with_boost(DI,bm,i)}
+    # Disgelikte Übungen auch aus den (sonst stabilen) Gym-Tagen nehmen
+    dropset=set(x.lower() for x in dx)
+    def filt(day):
+        f=[e for e in day if e["name"].lower() not in dropset]
+        return f if len(f)>=3 else day
+    GA=filt(GYM_A); GB=filt(GYM_B)
+    # Home-Bauch: Favoriten zuerst, dann Wochen-Rotation; B aus dem Rest (distinkt)
+    home=drop_only(HOME_POOL,dx)
+    homeA=pick_with_boost(home,bx,0,4)
+    homeB=pick_with_boost([e for e in home if e not in homeA] or home,bx,4,4)
     training={"program":{
-        "A":{"label":"Gym 1 · Ganzkörper","ex":GYM_A},
-        "B":{"label":"Gym 2 · Ganzkörper","ex":GYM_B},
+        "A":{"label":"Gym 1 · Ganzkörper","ex":GA},
+        "B":{"label":"Gym 2 · Ganzkörper","ex":GB},
         "C":{"label":"Zuhause · Bauch A","ex":homeA},
         "D":{"label":"Zuhause · Bauch B","ex":homeB},
     }}
