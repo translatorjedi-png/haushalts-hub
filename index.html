@@ -245,19 +245,69 @@
   function putTraining(v){ state.training=v; lsSave("training",v); if(SYNC&&fbDoc) fbDoc.set({training:v},{merge:true}); }
   function putDayplan(v){  state.dayplan=v;  lsSave("dayplan",v);  if(SYNC&&fbDoc) fbDoc.set({dayplan:v},{merge:true}); }
 
-  // Lebensmittel-Schlüssel ohne Mengenangabe (zum Entdoppeln der Einkaufsliste).
-  function foodKey(s){ var t=String(s).toLowerCase().replace(/\(.*?\)/g," "); var i=t.search(/\s\d/); if(i>0) t=t.slice(0,i); return t.replace(/\s+/g," ").trim()||String(s).toLowerCase(); }
-  // Einkaufsliste aus den im Tagesplan gewählten Gerichten (entdoppelt nach Lebensmittel).
-  function shoppingFromChosen(){
-    var chosen = chosenDishNames(); var seen={}, out=[];
-    (state.kitchen.meals||[]).forEach(function(m){
-      if(!chosen[m.name.toLowerCase()]) return;
-      (m.ing||[]).forEach(function(x){
-        var key=foodKey(x); if(seen[key]) return; seen[key]=true;
-        out.push({ id:uid(), text:x, done:false });
+  /* -------- Einkaufsliste: parsen, konsolidieren (summieren), kategorisieren -------- */
+  var SHOP_CATS = [
+    { name:"Obst & Gemüse", kw:["apfel","banane","gurke","paprika","tomate","zwiebel","knoblauch","brokkoli","zucchini","kartoffel","karotte","champignon","salat","oliven","zitrone","ingwer","petersilie","dill","schnittlauch","beeren","obst","minze","spinat","gemüse","avocado"] },
+    { name:"Fleisch & Fisch", kw:["pute","hähnchen","hühner","faschiertes","rind","schwein","steak","schinken","lachs","thunfisch","garnelen","filet"] },
+    { name:"Milch, Käse & Eier", kw:["eier","milch","skyr","joghurt","topfen","quark","cottage","cheese","frischkäse","käse","feta","parmesan","sauerrahm","crème","butter","hüttenkäse"] },
+    { name:"Trocken, Konserven & Backen", kw:["reis","nudel","spaghetti","couscous","bulgur","hafer","brot","wrap","tortilla","passata","bohnen","mais","dose","linsen","chia","nüsse","paranuss","backpulver","öl","sojasauce","dressing","fajita","gewürz","kreuzkümmel","paprikapulver","senf","croutons","erdnussmus","kakao","honig","ahornsirup","zartbitter","schokolade","datteln","oregano","rosmarin"] },
+  ];
+  var SHOP_ORDER = ["Obst & Gemüse","Fleisch & Fisch","Milch, Käse & Eier","Tiefkühl","Trocken, Konserven & Backen","Sonstiges"];
+  var FOOD_SYN = { "tomate":"tomaten", "kartoffel":"kartoffeln", "banane":"bananen" };
+  var SHOP_SKIP = { "salz":1,"pfeffer":1,"salz, pfeffer":1,"salz und pfeffer":1 };
+  function catFor(name, unit){
+    var n=String(name).toLowerCase();
+    if(/tk-|tiefkühl|gefroren|\(tk\)/.test(n)) return "Tiefkühl";
+    if(/öl$|öl\s/.test(n)) return "Trocken, Konserven & Backen";   // Olivenöl etc. (nicht Oliven)
+    if(/dose/.test(String(unit||"").toLowerCase())) return "Trocken, Konserven & Backen";
+    for(var i=0;i<SHOP_CATS.length;i++){ var c=SHOP_CATS[i];
+      for(var j=0;j<c.kw.length;j++){ if(n.indexOf(c.kw[j])>=0) return c.name; } }
+    return "Sonstiges";
+  }
+  function parseNum(q){
+    q=String(q).replace(/\s/g,"");
+    if(q.indexOf("/")>0){ var p=q.split("/"); return parseFloat(p[0])/parseFloat(p[1]); }
+    if(/[–-]/.test(q)){ var r=q.split(/[–-]/); return parseFloat(String(r[r.length-1]).replace(",",".")); }
+    var f=parseFloat(q.replace(",",".")); return isNaN(f)?null:f;
+  }
+  function parseIng(s){
+    var core=String(s).trim().replace(/\s*\(.*?\)\s*$/,"").trim();
+    var m=core.match(/^(.+?)\s+(\d+(?:[.,]\d+)?(?:\/\d+)?(?:[–-]\d+)?)\s*([A-Za-zäöüÄÖÜ]+)?$/);
+    if(!m) return { name:core, num:null, unit:"" };
+    return { name:m[1].trim(), num:parseNum(m[2]), unit:(m[3]||"").trim() };
+  }
+  function fmtNum(n){ return String(Math.round(n*100)/100).replace(".",","); }
+  function shopCat(item){ return SHOP_ORDER.indexOf(item.cat)>=0 ? item.cat : catFor(item.text,""); }
+  // Wie oft ist jedes Gericht im Tagesplan gewählt (z. B. 2× = für 2 Tage kochen).
+  function chosenDishCounts(){
+    var cnt={}; var dp=state.dayplan||{}; var days=dp.days||{};
+    DAYS.forEach(function(d){ var day=days[d]; if(!day) return;
+      SLOTS.forEach(function(s){ var slot=day[s.k]; if(!slot||!slot.pick) return;
+        var o=(slot.opts||[]).find(function(x){return x.key===slot.pick;});
+        if(o&&o.name){ var k=o.name.toLowerCase(); cnt[k]=(cnt[k]||0)+1; }
       });
     });
-    return out;
+    return cnt;
+  }
+  // Konsolidierte, kategorisierte Einkaufsliste aus den gewählten Gerichten.
+  // Mengen werden mit der Anzahl der Auswahl multipliziert (2× gewählt = doppelt).
+  function buildShoppingList(){
+    var counts=chosenDishCounts(); var groups={}, order=[];
+    (state.kitchen.meals||[]).forEach(function(m){
+      var c=counts[m.name.toLowerCase()]; if(!c) return;
+      (m.ing||[]).forEach(function(x){
+        var p=parseIng(x); var nk=(FOOD_SYN[p.name.toLowerCase()]||p.name.toLowerCase());
+        if(SHOP_SKIP[nk]) return;
+        var uk=(p.unit||"").toLowerCase().replace(/n$/,"");
+        var key=nk+"|"+uk; var add=(p.num!=null? p.num*c : null);
+        if(!groups[key]){ groups[key]={name:p.name,unit:p.unit,num:(add||0),hasNum:(add!=null),cat:catFor(p.name,p.unit)}; order.push(key); }
+        else if(add!=null){ groups[key].num+=add; groups[key].hasNum=true; }
+      });
+    });
+    return order.map(function(k){
+      var g=groups[k]; var q=g.hasNum?fmtNum(g.num):"";
+      return { id:uid(), text:(g.name+(q?" "+q:"")+(g.unit?" "+g.unit:"")).trim(), done:false, cat:g.cat };
+    });
   }
 
   /* ------------------------------- Views ------------------------------ */
@@ -280,7 +330,13 @@
     if(open.length===0 && done.length===0){
       h += '<div class="empty">Noch nichts auf der Liste. Trag oben etwas ein.</div>';
     }
-    h += '<ul class="list">' + open.map(itemRow).join("") + '</ul>';
+    // offene Posten nach Kategorie gruppiert
+    SHOP_ORDER.forEach(function(cat){
+      var group = open.filter(function(i){ return shopCat(i)===cat; });
+      if(!group.length) return;
+      h += '<div class="subhead"><span>'+esc(cat)+' ('+group.length+')</span></div>';
+      h += '<ul class="list">' + group.map(itemRow).join("") + '</ul>';
+    });
     if(done.length>0){
       h += '<div class="subhead"><span>Erledigt ('+done.length+')</span>'
          +   '<button class="linkbtn" data-action="shop-clear-done">Erledigte entfernen</button></div>'
@@ -656,14 +712,14 @@
     if(a==="shop-add"){
       var inp = document.getElementById("shop-input"); var v=(inp.value||"").trim();
       if(!v) return;
-      putShopping([{id:uid(),text:v,done:false}].concat(state.shopping)); render(); return;
+      putShopping([{id:uid(),text:v,done:false,cat:catFor(v,"")}].concat(state.shopping)); render(); return;
     }
     if(a==="shop-toggle"){
       putShopping(state.shopping.map(function(i){ return i.id===id?Object.assign({},i,{done:!i.done}):i; })); render(); return;
     }
     if(a==="shop-del"){ putShopping(state.shopping.filter(function(i){return i.id!==id;})); render(); return; }
     if(a==="shop-clear-done"){ putShopping(state.shopping.filter(function(i){return !i.done;})); render(); return; }
-    if(a==="shop-from-plan"){ putShopping(shoppingFromChosen()); render(); return; }
+    if(a==="shop-from-plan"){ putShopping(buildShoppingList()); render(); return; }
 
     if(a==="meal-add"){
       var mi=document.getElementById("meal-input"); var mv=(mi.value||"").trim();

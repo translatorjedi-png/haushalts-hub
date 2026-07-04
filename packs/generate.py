@@ -45,9 +45,9 @@ ALL = [
  R("Chia-Schoko-Pudding",["dessert","süß","meal-prep"],["Chiasamen 40 g","Milch 250 ml","Kakao 1 EL","Banane 1 oder Honig 1 TL"],["Chia, Milch, Kakao und Süße verrühren.","Über Nacht quellen lassen.","Mit Beeren toppen."]),
  R("Dattel-Kakao-Energy-Balls",["dessert","süß","meal-prep"],["Datteln 150 g","Haferflocken 80 g","Kakao 2 EL","Nüsse 40 g"],["Alles im Mixer zerkleinern.","Kleine Kugeln rollen.","Kalt stellen."]),
  R("Joghurt-Beeren-Schoko-Bark",["dessert","süß","high-protein"],["Skyr 300 g","TK-Beeren 80 g","Zartbitterschokolade 70 % 20 g","Honig 1 TL"],["Skyr mit Honig glatt rühren, auf Backpapier streichen.","Mit Beeren und Schoko-Splittern bestreuen.","Einfrieren, in Stücke brechen."]),
- R("Puten-Reis-Pfanne mit Paprika",["abend","schnell","high-protein","vorkochen"],["Putenbrust 800 g","Reis (roh) 320 g","Paprika 3","Zwiebel 2","Sojasauce 4 EL","Olivenöl 2 EL"],["Reis kochen.","Pute würfeln, scharf anbraten, herausnehmen.","Paprika und Zwiebel braten.","Pute zurück, mit Sojasauce ablöschen, mit Reis mischen.","Vorkochen: Hälfte für Tag 2 kühlen."]),
- R("Chili con Carne mit Reis",["abend","eisen","high-protein","vorkochen"],["Faschiertes (Rind) 600 g","Kidneybohnen 1 Dose (400 g)","Mais 1 Dose (300 g)","Stückige Tomaten 2 Dosen","Zwiebel 2","Knoblauch 2 Zehen","Reis (roh) 320 g","Kreuzkümmel 1 TL","Paprikapulver 1 TL"],["Zwiebel + Knoblauch anbraten, Faschiertes mitbraten.","Gewürze mitrösten.","Tomaten, Bohnen und Mais dazu, 20 Min köcheln.","Mit Reis servieren. Hälfte für Tag 2 kühlen."]),
- R("Nudelauflauf mit Pute & Käse",["abend","high-protein","käse","vorkochen"],["Putenbrust 600 g","Vollkornnudeln 400 g","Passata 700 g","Zwiebel 1","Knoblauch 2 Zehen","Reibekäse 200 g","Olivenöl 2 EL"],["Nudeln al dente kochen.","Pute mit Zwiebel + Knoblauch anbraten, Passata dazu.","Nudeln + Sauce in Auflaufform, Käse darüber.","Bei 200 °C 20 Min backen. Hälfte für Tag 2."]),
+ R("Puten-Reis-Pfanne mit Paprika",["abend","schnell","high-protein","vorkochen"],["Putenbrust 400 g","Reis (roh) 160 g","Paprika 2","Zwiebel 1","Sojasauce 2 EL","Olivenöl 1 EL"],["Reis kochen.","Pute würfeln, scharf anbraten, herausnehmen.","Paprika und Zwiebel braten.","Pute zurück, mit Sojasauce ablöschen, mit Reis mischen.","Für 2 Tage vorkochen: das Gericht an beiden Tagen wählen → dann kaufst du automatisch die doppelte Menge; einfach die doppelte Portion kochen und die Hälfte kühlen."]),
+ R("Chili con Carne mit Reis",["abend","eisen","high-protein","vorkochen"],["Faschiertes (Rind) 300 g","Kidneybohnen 1 Dose (400 g)","Mais 1 kleine Dose (150 g)","Stückige Tomaten 1 Dose","Zwiebel 1","Knoblauch 2 Zehen","Reis (roh) 160 g","Kreuzkümmel 1 TL","Paprikapulver 1 TL"],["Zwiebel + Knoblauch anbraten, Faschiertes mitbraten.","Gewürze mitrösten.","Tomaten, Bohnen und Mais dazu, 20 Min köcheln.","Mit Reis servieren.","Für 2 Tage: an beiden Tagen wählen → doppelte Menge kochen, schmeckt aufgewärmt fast besser."]),
+ R("Nudelauflauf mit Pute & Käse",["abend","high-protein","käse","vorkochen"],["Putenbrust 300 g","Vollkornnudeln 200 g","Passata 400 g","Zwiebel 1","Knoblauch 1 Zehe","Reibekäse 100 g","Olivenöl 1 EL"],["Nudeln al dente kochen.","Pute mit Zwiebel + Knoblauch anbraten, Passata dazu.","Nudeln + Sauce in Auflaufform, Käse darüber.","Bei 200 °C 20 Min backen.","Für 2 Tage: an beiden Tagen wählen → doppelte Menge, Hälfte kühlen."]),
  R("Lachs mit Brokkoli & Zitrone",["abend","fisch","schnell","omega-3"],["Lachsfilet 2 Stück","Brokkoli (TK) 400 g","Zitrone 1","Olivenöl 1 EL"],["Ofen auf 200 °C.","Lachs mit Öl, Salz und Zitrone aufs Blech.","Brokkoli dazu, 15–18 Min backen."]),
  R("Hähnchen-Souvlaki mit griechischem Salat",["abend","high-protein","salat"],["Hähnchenbrust 400 g","Gurke 1","Tomaten 3","Rote Zwiebel 1/2","Oliven 50 g","Feta 100 g","Olivenöl 2 EL","Oregano 1 TL"],["Hähnchen marinieren und braten.","Salat schneiden, mit Oliven mischen.","Mit Öl beträufeln, Feta darüber.","Hähnchen dazu."]),
  R("Shakshuka mit Feta",["abend","vegetarisch","high-protein","eisen"],["Eier 4","Passata 400 g","Paprika 1","Zwiebel 1","Feta 100 g","Kreuzkümmel 1 TL"],["Zwiebel + Paprika anbraten.","Passata + Kreuzkümmel, 8 Min köcheln.","Eier hineingeben, stocken lassen.","Feta darüber."]),
@@ -56,6 +56,8 @@ ALL = [
  R("Hähnchen-Fajitas",["abend","high-protein"],["Hähnchenbrust 500 g","Vollkorn-Tortillas 6","Paprika 2","Zwiebel 1","Fajita-Gewürz","Sauerrahm 100 g"],["Hähnchen mit Paprika und Zwiebel anbraten.","Mit Fajita-Gewürz würzen.","Tortillas füllen, mit Sauerrahm servieren."]),
  R("Schweinefilet mit Ofengemüse",["abend","high-protein"],["Schweinefilet 500 g","Kartoffeln 500 g","Paprika 2","Zucchini 1","Olivenöl 2 EL","Rosmarin"],["Ofen 200 °C. Gemüse und Kartoffeln 25 Min backen.","Schweinefilet anbraten, 12–15 Min mit in den Ofen.","In Scheiben mit Ofengemüse servieren."]),
  R("Gefüllte Paprika mit Faschiertem",["abend","high-protein","eisen"],["Paprika 4","Faschiertes (Rind) 500 g","Reis 100 g","Passata 400 g","Zwiebel 1","Reibekäse 80 g"],["Reis vorkochen. Paprika halbieren.","Faschiertes mit Zwiebel anbraten, mit Reis mischen.","Paprika füllen, Passata angießen, Käse darüber.","Bei 190 °C 30 Min backen."]),
+ R("Rindfleisch-Spinat-Pfanne mit Reis",["abend","eisen","high-protein","schilddrüse"],["Rindfleisch (Streifen) 300 g","Blattspinat (frisch oder TK) 200 g","Reis 160 g","Knoblauch 2 Zehen","Zitrone 1/2","Olivenöl 1 EL"],["Reis kochen.","Rindfleischstreifen scharf anbraten, herausnehmen.","Knoblauch und Spinat kurz zusammenfallen lassen.","Fleisch zurück, mit Zitronensaft abschmecken (Vitamin C hilft der Eisenaufnahme), mit Reis servieren."]),
+ R("Skyr mit Beeren & Paranüssen",["snack","süß","high-protein","schilddrüse"],["Skyr 300 g","TK-Beeren 100 g","Paranüsse 3","Honig 1 TL"],["Skyr in Schalen geben.","Beeren und grob gehackte Paranüsse darüber (Paranüsse liefern Selen).","Mit etwas Honig süßen."]),
 ]
 
 # --------------------------------------------------------------- Tagesplan-Pools
@@ -90,6 +92,7 @@ SNACK=[
  o("Hüttenkäse mit Obst","150 g + Obst","200 g + Obst","~180 / ~280"),
  o("Apfel + Nüsse","1 Apfel, 20 g Nüsse","1 Apfel, 30 g Nüsse","~190 / ~280"),
  o("Käsewürfel + Gemüsesticks","40 g Käse","60 g Käse","~180 / ~270"),
+ o("Skyr mit Beeren & Paranüssen","150 g Skyr, 2 Paranüsse","250 g Skyr, 3 Paranüsse","~180 / ~290"),
 ]
 DINNER=[
  o("Puten-Reis-Pfanne mit Paprika","0,8 Portion","1,2 Portion","~500 / ~650"),
@@ -103,6 +106,7 @@ DINNER=[
  o("Hähnchen-Fajitas","2 Fajitas","3 Fajitas","~500 / ~680"),
  o("Schweinefilet mit Ofengemüse","120 g + Gemüse","180 g + Kartoffeln","~480 / ~660"),
  o("Gefüllte Paprika mit Faschiertem","1 Paprika","2 Paprika","~490 / ~670"),
+ o("Rindfleisch-Spinat-Pfanne mit Reis","0,8 Portion","1,2 Portion","~490 / ~660"),
 ]
 
 # --------------------------------------------------------------- Training
