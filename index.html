@@ -147,6 +147,9 @@
   .syncerr{background:#FBECEC;border:1px solid #C98A8A;border-radius:8px;padding:8px 11px;
            font-size:13px;color:#7A2E2E;margin:0 0 14px;}
   .exalt{color:var(--muted);font-size:11px;margin-left:2px;}
+  .exswap{padding:2px 9px;font-size:12px;line-height:1.4;}
+  .exlvl{font-size:11px;color:#8A5A1D;background:#FBF2E4;border-radius:999px;padding:1px 7px;}
+  .exmeta{flex-wrap:wrap;gap:8px;}
   #export-box{min-height:120px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;}
   .kfilter{display:inline-flex;gap:4px;}
   .kfbtn{background:transparent;border:1px solid var(--line);border-radius:999px;padding:3px 10px;font-size:11px;color:var(--muted);cursor:pointer;text-transform:none;letter-spacing:0;}
@@ -492,11 +495,22 @@
     var anySlots = Object.keys(prog).some(function(k){ return (prog[k].slots||[]).length; });
     var h = "";
     if(anySlots){
+      var easy = easyOn();
       h += '<div class="info"><span class="h">Die Übungen wechseln jetzt von selbst</span>'
          +   'Jeder Trainingstag hat pro Muskelgruppe mehrere Varianten. '
          +   '<b>„Trainiert ✓“ trägt die Einheit ein <i>und</i> stellt für das nächste Mal andere Übungen ein.</b> '
-         +   'Nur umschalten ohne Eintrag: <b>🔄 Andere Übungen</b>. '
+         +   'Nur umschalten ohne Eintrag: <b>🔄 Andere Übungen</b> (ganzer Tag) oder '
+         +   '<b>⇄</b> bei einer einzelnen Übung. '
          +   'Was ihr mit 👍 markiert, bleibt stehen; 👎 kommt nicht mehr.'
+         + '</div>';
+      h += '<div class="info"><span class="h">Anfänger-Modus</span>'
+         +   'Ist er an, kommen nur <b>geführte Maschinen, Kabelzug und einfache '
+         +   'Körpergewichtsübungen</b> — nichts, wo die Technik im Weg steht. '
+         +   'Aus schaltet zusätzlich Kurzhanteln und Langhantel frei.'
+         +   '<div class="row" style="margin:9px 0 0">'
+         +     '<button class="kfbtn'+(easy?' on':'')+'" data-action="easy-toggle" data-v="1">Nur einfache Übungen</button>'
+         +     '<button class="kfbtn'+(!easy?' on':'')+'" data-action="easy-toggle" data-v="0">Alle Übungen</button>'
+         +   '</div>'
          + '</div>';
     } else {
       h += '<div class="empty small">Übungen sind frei editierbar. „Trainiert ✓“ trägt die Einheit mit Datum ein. '
@@ -524,6 +538,17 @@
            +   '</div>';
         var liked = (t.prefs||{})[e.name.toLowerCase()]||0;
         var meta = '';
+        // Wie viele Varianten hat der Platz dieser Übung — und die wievielte ist dran?
+        if(typeof e.si==="number" && day.slots && day.slots[e.si]){
+          var cands = slotCandidates(slotAlts(day.slots[e.si]), t.prefs||{}, easyOn());
+          if(cands.length>1){
+            var sel = daySel(day);
+            var pos = ((sel[e.si]||0) % cands.length + cands.length) % cands.length;
+            meta += '<button class="chip exswap" data-action="ex-swap" data-key="'+key+'" data-si="'+e.si+'" title="andere Übung für diesen Platz">⇄ tauschen</button>';
+            meta += '<span class="exalt">'+(pos+1)+' von '+cands.length+'</span>';
+          }
+        }
+        if((e.lvl||1)>1) meta += '<span class="exlvl">freie Gewichte</span>';
         if(e.en) meta += '<span class="exen">'+esc(e.en)+'</span>';
         meta += '<button class="exlk'+(liked===1?' on':'')+'" data-action="ex-like" data-key="'+key+'" data-name="'+esc(e.name)+'" aria-label="gefällt mir">👍</button>';
         meta += '<button class="exdk'+(liked===-1?' on':'')+'" data-action="ex-dislike" data-key="'+key+'" data-name="'+esc(e.name)+'" aria-label="gefällt mir nicht">👎</button>';
@@ -694,38 +719,70 @@
     return [];
   }
 
-  function mkEx(e){
+  function mkEx(e, si){
     e = e || {};
     var o={ id:uid(), name:String(e.name||""), scheme:String(e.scheme||"3 × 10") };
     if(e.en)   o.en   = String(e.en);
     if(e.img)  o.img  = String(e.img);
     if(e.img2) o.img2 = String(e.img2);
     if(e.link) o.link = String(e.link);
+    if(e.lvl)  o.lvl  = Number(e.lvl) || 1;      // 1 = Maschine/einfach, 2 = freie Gewichte
+    if(typeof si==="number") o.si = si;          // zu welchem Platz gehört die Übung
     return o;
   }
 
-  // Stellt für einen Trainingstag die nächste Übungsvariante ein: pro Platz
-  // (Muskelgruppe) eine Alternative weiter. 👍 bleibt stehen, 👎 fällt raus.
+  // Anfänger-Modus: standardmäßig AN — zeigt nur geführte Maschinen, Kabelzug
+  // und einfache Körpergewichtsübungen.
+  function easyOn(){ return (state.training||{}).easy !== false; }
+
+  // Welche Varianten kommen für einen Platz gerade in Frage?
+  // 👎 raus, im Anfänger-Modus nur lvl 1, 👍 schlägt alles andere.
+  function slotCandidates(alts, prefs, easy){
+    var ok = alts.filter(function(e){ return prefs[(e.name||"").toLowerCase()]!==-1; });
+    if(!ok.length) ok = alts.slice();
+    if(easy){
+      var simple = ok.filter(function(e){ return (e.lvl||1) <= 1; });
+      if(simple.length) ok = simple;
+    }
+    var liked = ok.filter(function(e){ return prefs[(e.name||"").toLowerCase()]===1; });
+    return liked.length ? liked : ok;
+  }
+
+  function bumpAll(sel){ for(var i=0;i<sel.length;i++) sel[i]=(sel[i]||0)+1; }
+
+  // sel[i] = welche Variante auf Platz i gerade dran ist (Migration aus altem rot).
+  function daySel(day){
+    var n=(day.slots||[]).length;
+    var sel = Array.isArray(day.sel) ? day.sel.slice(0,n)
+            : (day.slots||[]).map(function(_,i){ return (typeof day.rot==="number"?day.rot:0)+i; });
+    while(sel.length<n) sel.push(0);
+    return sel;
+  }
+
+  // Bestimmt die Übungen eines Trainingstags neu. `mutate` darf vorher die
+  // Auswahl verschieben — für alle Plätze (ganzer Tag) oder nur einen
+  // (einzelne Übung tauschen). Ohne `mutate` wird nur neu berechnet, z. B.
+  // nach 👍/👎 oder nach dem Umschalten des Anfänger-Modus.
   // Gibt false zurück, wenn der Tag (noch) keine Varianten hat.
-  function rotateProgram(key, step){
-    var t = state.training;
+  function resolveProgram(key, mutate, keepState){
+    var t = keepState || state.training;
     var day = (t.program||{})[key];
-    if(!day || !(day.slots||[]).length) return false;
+    if(!day || !(day.slots||[]).length) return keepState ? t : false;
     var prefs = t.prefs || {};
-    var rot = (typeof day.rot==="number" ? day.rot : 0) + (step||1);
+    var easy  = t.easy !== false;
+    var sel = daySel(day);
+    if(mutate) mutate(sel);
     var ex = day.slots.map(function(s, i){
-      var alts = slotAlts(s);
-      if(!alts.length) return null;
-      var ok = alts.filter(function(e){ return prefs[(e.name||"").toLowerCase()]!==-1; });
-      if(!ok.length) ok = alts;
-      var liked = ok.filter(function(e){ return prefs[(e.name||"").toLowerCase()]===1; });
-      var src = liked.length ? liked : ok;
-      var pos = ((rot+i) % src.length + src.length) % src.length;
-      return mkEx(src[pos]);
+      var src = slotCandidates(slotAlts(s), prefs, easy);
+      if(!src.length) return null;
+      var pos = ((sel[i]||0) % src.length + src.length) % src.length;
+      return mkEx(src[pos], i);
     }).filter(function(e){ return e && e.name; });
     var prog = Object.assign({}, t.program);
-    prog[key] = Object.assign({}, day, { rot:rot, ex:ex });
-    putTraining(Object.assign({}, t, { program:prog }));
+    prog[key] = { label:day.label, slots:day.slots, sel:sel, ex:ex };
+    var next = Object.assign({}, t, { program:prog });
+    if(keepState) return next;          // Aufrufer schreibt selbst (mehrere Tage)
+    putTraining(next);
     return true;
   }
 
@@ -776,20 +833,28 @@
       var prog = {};
       Object.keys(data.training.program).forEach(function(key){
         var d = data.training.program[key] || {};
+        // slots = pro Muskelgruppe mehrere Varianten; daraus wählt die App.
+        // Form: [{alts:[…]}, …] — NICHT [[…],[…]], denn Firestore lehnt
+        // Arrays direkt in Arrays ab (DocumentReference.set schlägt sonst fehl).
+        var slots = Array.isArray(d.slots)
+          ? d.slots.map(function(s){ return { alts: slotAlts(s).map(mkEx) }; })
+                   .filter(function(s){ return s.alts.length; })
+          : [];
+        var rot0 = (typeof d.rot==="number" ? d.rot : 0);
         prog[key] = {
           label: String(d.label||("Tag "+key)),
-          rot: (typeof d.rot==="number" ? d.rot : 0),
-          ex: (Array.isArray(d.ex)?d.ex:[]).map(mkEx),
-          // slots = pro Muskelgruppe mehrere Varianten; daraus rotiert die App.
-          // Form: [{alts:[…]}, …] — NICHT [[…],[…]], denn Firestore lehnt
-          // Arrays direkt in Arrays ab (DocumentReference.set schlägt sonst fehl).
-          slots: Array.isArray(d.slots)
-            ? d.slots.map(function(s){ return { alts: slotAlts(s).map(mkEx) }; })
-                     .filter(function(s){ return s.alts.length; })
-            : [],
+          slots: slots,
+          sel: Array.isArray(d.sel) ? d.sel.map(Number) : slots.map(function(_,i){ return rot0+i; }),
+          ex: (Array.isArray(d.ex)?d.ex:[]).map(function(e){ return mkEx(e); }),
         };
       });
-      putTraining(Object.assign({}, state.training, { program: prog }));
+      // Übungen gleich aus den Varianten ableiten: setzt die Platz-Zuordnung
+      // (für „⇄ tauschen") und wendet Anfänger-Modus + 👍/👎 sofort an.
+      var nextT = Object.assign({}, state.training, { program: prog });
+      Object.keys(prog).forEach(function(k){
+        if((prog[k].slots||[]).length) nextT = resolveProgram(k, null, nextT);
+      });
+      putTraining(nextT);
       parts.push("Trainingsplan ("+Object.keys(prog).length+" Tage)");
     }
     // --- Tagesplan (Frühstück/Mittag/Snack/Abend mit Alternativen) ---
@@ -954,15 +1019,34 @@
       var entry={ id:uid(), day:state.training.program[key].label, date:new Date().toISOString() };
       putTraining(Object.assign({},state.training,{log:[entry].concat(state.training.log||[]).slice(0,60)}));
       // Eintragen UND für das nächste Mal neue Übungen einstellen.
-      trainMsg = rotateProgram(key,1)
+      trainMsg = resolveProgram(key, bumpAll)
         ? "Eingetragen ✓ — für das nächste Mal sind neue Übungen eingestellt."
         : "Eingetragen ✓ — für wechselnde Übungen einmal in der Küche „📥 Training laden“ tippen.";
       render(); return;
     }
     if(a==="train-rotate"){
-      trainMsg = rotateProgram(key,1)
+      trainMsg = resolveProgram(key, bumpAll)
         ? "Neue Übungen eingestellt — ohne Eintrag im Verlauf."
         : "Dieser Tag hat noch keine Varianten — in der Küche „📥 Training laden“ tippen.";
+      render(); return;
+    }
+    if(a==="ex-swap"){
+      var si=parseInt(el.getAttribute("data-si"),10);
+      resolveProgram(key, function(sel){ sel[si]=(sel[si]||0)+1; });
+      trainMsg = "Übung getauscht.";
+      render(); return;
+    }
+    if(a==="easy-toggle"){
+      var want = el.getAttribute("data-v")==="1";
+      if(easyOn()!==want){
+        var nt = Object.assign({}, state.training, { easy:want });
+        Object.keys(nt.program||{}).forEach(function(k){
+          if((nt.program[k].slots||[]).length) nt = resolveProgram(k, null, nt);
+        });
+        putTraining(nt);
+        trainMsg = want ? "Anfänger-Modus an — nur Maschinen und einfache Übungen."
+                        : "Alle Übungen frei — auch Kurzhanteln und Langhantel.";
+      }
       render(); return;
     }
     if(a==="log-del"){ putTraining(Object.assign({},state.training,{log:(state.training.log||[]).filter(function(l){return l.id!==id;})})); render(); return; }
@@ -987,7 +1071,7 @@
       if(!lprefs[lnm]) delete lprefs[lnm];
       putTraining(Object.assign({}, state.training, { prefs:lprefs }));
       // 👎 = sofort weg, 👍 = ab jetzt fix: Auswahl neu bestimmen (ohne weiterzudrehen).
-      if(key) rotateProgram(key, 0);
+      if(key) resolveProgram(key, null);
       render(); return;
     }
   });

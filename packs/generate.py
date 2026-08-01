@@ -26,8 +26,12 @@ WEEK = datetime.date.today().isocalendar()[1]   # 1..53 -> Rotations-Offset
 
 def R(name, tags, ing, steps): return {"name": name, "tags": tags, "ing": ing, "steps": steps}
 def o(name, a, b, kcal): return {"name": name, "a": a, "b": b, "kcal": kcal}
-def EX(name, scheme, en, idn): return {"name": name, "scheme": scheme, "en": en,
-                                       "img": BASE+idn+"/0.jpg", "img2": BASE+idn+"/1.jpg"}
+def EX(name, scheme, en, idn, lvl=1):
+    """lvl 1 = Anfaenger: gefuehrte Maschine, Kabelzug oder einfache
+    Koerpergewichtsuebung. lvl 2 = freie Gewichte / mehr Technik.
+    Anna trainiert seit Mai 2026 -> die App zeigt standardmaessig nur lvl 1."""
+    return {"name": name, "scheme": scheme, "en": en, "lvl": lvl,
+            "img": BASE+idn+"/0.jpg", "img2": BASE+idn+"/1.jpg"}
 
 VORKOCH = ("Fuer 2 Tage: einfach an beiden Tagen im Tagesplan waehlen - dann kauft "
            "die App automatisch die doppelte Menge ein. Doppelte Portion kochen, "
@@ -368,36 +372,47 @@ DINNER=[
 GYM_A_SLOTS = [
  [EX("Beinpresse","3 × 10–12","Leg Press","Leg_Press"),
   EX("Beinstrecker (Maschine)","3 × 12","Leg Extensions","Leg_Extensions"),
-  EX("Goblet-Kniebeuge","3 × 10","Goblet Squat","Goblet_Squat"),
-  EX("Ausfallschritte (Kurzhantel)","3 × 10 je Bein","Dumbbell Lunges","Dumbbell_Lunges")],
+  EX("Kniebeuge (Maschine)","3 × 10–12","Machine Squat","Lying_Machine_Squat"),
+  EX("Goblet-Kniebeuge","3 × 10","Goblet Squat","Goblet_Squat",2),
+  EX("Ausfallschritte (Kurzhantel)","3 × 10 je Bein","Dumbbell Lunges","Dumbbell_Lunges",2)],
  [EX("Latzug","3 × 10–12","Wide-Grip Lat Pulldown","Wide-Grip_Lat_Pulldown"),
   EX("Latzug eng","3 × 10–12","Close-Grip Lat Pulldown","Close-Grip_Front_Lat_Pulldown"),
-  EX("Rudern (Kurzhantel)","3 × 10 je Arm","Bent Over Two-Dumbbell Row","Bent_Over_Two-Dumbbell_Row")],
+  EX("Latzug (Untergriff)","3 × 10–12","Underhand Cable Pulldown","Underhand_Cable_Pulldowns"),
+  EX("Rudern (Kurzhantel)","3 × 10 je Arm","Bent Over Two-Dumbbell Row","Bent_Over_Two-Dumbbell_Row",2)],
  [EX("Brustpresse (Maschine)","3 × 10–12","Chest Press (Machine)","Leverage_Chest_Press"),
   EX("Butterfly (Maschine)","3 × 12","Butterfly","Butterfly"),
   EX("Kabel-Brustpresse","3 × 12","Cable Chest Press","Cable_Chest_Press"),
-  EX("Kurzhantel-Bankdrücken","3 × 10","Dumbbell Bench Press","Dumbbell_Bench_Press")],
+  EX("Kabel-Brustpresse (schräg)","3 × 12","Incline Cable Chest Press","Incline_Cable_Chest_Press"),
+  EX("Kurzhantel-Bankdrücken","3 × 10","Dumbbell Bench Press","Dumbbell_Bench_Press",2)],
  [EX("Schulterpresse (Maschine)","3 × 10","Shoulder Press (Machine)","Leverage_Shoulder_Press"),
-  EX("Seitheben (Kurzhantel)","3 × 12","Side Lateral Raise","Side_Lateral_Raise"),
-  EX("Kurzhantel-Schulterdrücken","3 × 10","Dumbbell Shoulder Press","Dumbbell_Shoulder_Press")],
+  EX("Schulterdrücken (Maschine)","3 × 10","Machine Military Press","Machine_Shoulder_Military_Press"),
+  EX("Seitheben am Kabel","3 × 12 je Seite","Cable Seated Lateral Raise","Cable_Seated_Lateral_Raise"),
+  EX("Seitheben (Kurzhantel)","3 × 12","Side Lateral Raise","Side_Lateral_Raise",2),
+  EX("Kurzhantel-Schulterdrücken","3 × 10","Dumbbell Shoulder Press","Dumbbell_Shoulder_Press",2)],
  [EX("Plank","3 × 20–30 s","Plank","Plank"),
   EX("Bauchmaschine","3 × 12","Ab Crunch Machine","Ab_Crunch_Machine"),
   EX("Kabel-Crunch","3 × 12","Cable Crunch","Cable_Crunch")],
 ]
 GYM_B_SLOTS = [
  [EX("Beinpresse","3 × 10–12","Leg Press","Leg_Press"),
-  EX("Hüftheben (Glute Bridge)","3 × 12","Barbell Glute Bridge","Barbell_Glute_Bridge"),
-  EX("Step-Ups (Kurzhantel)","3 × 10 je Bein","Dumbbell Step Ups","Dumbbell_Step_Ups"),
-  EX("Rumänisches Kreuzheben","3 × 10","Romanian Deadlift","Romanian_Deadlift")],
+  EX("Hüftheben (Brücke)","3 × 15","Butt Lift (Bridge)","Butt_Lift_Bridge"),
+  EX("Kniebeuge (Körpergewicht)","3 × 15","Bodyweight Squat","Bodyweight_Squat"),
+  EX("Step-Ups (Kurzhantel)","3 × 10 je Bein","Dumbbell Step Ups","Dumbbell_Step_Ups",2),
+  EX("Rumänisches Kreuzheben","3 × 10","Romanian Deadlift","Romanian_Deadlift",2),
+  EX("Hüftheben (Langhantel)","3 × 12","Barbell Glute Bridge","Barbell_Glute_Bridge",2)],
  [EX("Beinbeuger (Maschine)","3 × 12","Lying Leg Curls","Lying_Leg_Curls"),
   EX("Beinbeuger sitzend","3 × 12","Seated Leg Curl","Seated_Leg_Curl"),
-  EX("Wadenheben (Beinpresse)","3 × 15","Calf Press","Calf_Press_On_The_Leg_Press_Machine")],
+  EX("Beinbeuger stehend","3 × 12 je Bein","Standing Leg Curl","Standing_Leg_Curl"),
+  EX("Wadenheben (Beinpresse)","3 × 15","Calf Press","Calf_Press_On_The_Leg_Press_Machine"),
+  EX("Wadenheben sitzend","3 × 15","Seated Calf Raise","Seated_Calf_Raise")],
  [EX("Rudern (Maschine)","3 × 10–12","Seated Cable Rows","Seated_Cable_Rows"),
-  EX("Face Pulls","3 × 15","Face Pull","Face_Pull"),
   EX("Reverse Flys (Maschine)","3 × 12","Reverse Machine Flyes","Reverse_Machine_Flyes"),
-  EX("Rückenstrecker","3 × 12","Back Extensions","Hyperextensions_Back_Extensions")],
+  EX("Rückenstrecker","3 × 12","Back Extensions","Hyperextensions_Back_Extensions"),
+  EX("Face Pulls","3 × 15","Face Pull","Face_Pull",2)],
  [EX("Bizeps-Curls (Maschine)","3 × 12","Machine Bicep Curl","Machine_Bicep_Curl"),
-  EX("Hammer-Curls","3 × 12","Hammer Curls","Hammer_Curls")],
+  EX("Bizeps-Curls (Scottbank)","3 × 12","Machine Preacher Curls","Machine_Preacher_Curls"),
+  EX("Hammer-Curls am Kabel","3 × 12","Cable Hammer Curls","Cable_Hammer_Curls_-_Rope_Attachment"),
+  EX("Hammer-Curls (Kurzhantel)","3 × 12","Hammer Curls","Hammer_Curls",2)],
  [EX("Trizeps-Drücken (Kabel)","3 × 12","Triceps Pushdown","Triceps_Pushdown"),
   EX("Trizeps-Seil","3 × 12","Triceps Pushdown - Rope","Triceps_Pushdown_-_Rope_Attachment"),
   EX("Trizeps-Maschine","3 × 12","Machine Triceps Extension","Machine_Triceps_Extension")],
@@ -410,18 +425,18 @@ HOME_SLOTS_A = [
  [EX("Beinheben (liegend)","3 × 12","Lying Leg Raise","Flat_Bench_Lying_Leg_Raise"),
   EX("Umgekehrte Crunches","3 × 12","Reverse Crunch","Reverse_Crunch"),
   EX("Flutter Kicks","3 × 20","Flutter Kicks","Flutter_Kicks"),
-  EX("Klappmesser","3 × 10","Jackknife Sit-Up","Jackknife_Sit-Up")],
+  EX("Klappmesser","3 × 10","Jackknife Sit-Up","Jackknife_Sit-Up",2)],
  [EX("Plank","3 × 20–30 s","Plank","Plank"),
   EX("Seitlicher Plank","2 × 20 s je Seite","Side Bridge","Side_Bridge"),
   EX("Käfer (Dead Bug)","3 × 10 je Seite","Dead Bug","Dead_Bug")],
  [EX("Mountain Climbers","3 × 20","Mountain Climbers","Mountain_Climbers"),
   EX("Bicycle-Crunch","3 × 20","Air Bike","Air_Bike"),
-  EX("Russian Twist","3 × 20","Russian Twist","Russian_Twist"),
+  EX("Russian Twist","3 × 20","Russian Twist","Russian_Twist",2),
   EX("Fersen antippen","3 × 20","Alternate Heel Touchers","Alternate_Heel_Touchers")],
 ]
 HOME_SLOTS_B = [
  [EX("Hüftheben (Brücke)","3 × 15","Butt Lift (Bridge)","Butt_Lift_Bridge"),
-  EX("Beckenkippen-Brücke","3 × 12","Pelvic Tilt Into Bridge","Pelvic_Tilt_Into_Bridge"),
+  EX("Beckenkippen-Brücke","3 × 12","Pelvic Tilt Into Bridge","Pelvic_Tilt_Into_Bridge",2),
   EX("Kniebeuge (Körpergewicht)","3 × 15","Bodyweight Squat","Bodyweight_Squat")],
  [EX("Superman","3 × 12","Superman","Superman"),
   EX("Käfer (Dead Bug)","3 × 10 je Seite","Dead Bug","Dead_Bug"),
@@ -429,7 +444,7 @@ HOME_SLOTS_B = [
  [EX("Seitlicher Plank","2 × 20 s je Seite","Side Bridge","Side_Bridge"),
   EX("Plank","3 × 25–35 s","Plank","Plank"),
   EX("Mountain Climbers","3 × 20","Mountain Climbers","Mountain_Climbers")],
- [EX("Russian Twist","3 × 20","Russian Twist","Russian_Twist"),
+ [EX("Russian Twist","3 × 20","Russian Twist","Russian_Twist",2),
   EX("Bicycle-Crunch","3 × 20","Air Bike","Air_Bike"),
   EX("Stehendes Zehen-Antippen","3 × 15","Standing Toe Touches","Standing_Toe_Touches"),
   EX("Umgekehrte Crunches","3 × 12","Reverse Crunch","Reverse_Crunch")],
@@ -476,13 +491,16 @@ def week_options(pool, boost, k=4):
         days.append(day[:k])
     return days
 
-def build_day(slots, drop_ex, boost_ex, rot):
-    """Aus den Slot-Alternativen die aktuelle Auswahl bauen.
-    Gelikte gewinnen, Disgelikte fliegen raus, sonst Rotation."""
+def build_day(slots, drop_ex, boost_ex, rot, easy=True):
+    """Aus den Slot-Alternativen die Startauswahl bauen - dieselbe Logik wie
+    in der App: Disgelikte raus, im Anfaenger-Modus nur lvl 1, Gelikte fix."""
     dset=set(x.lower() for x in drop_ex); bset=set(x.lower() for x in boost_ex)
     out=[]
     for i,alts in enumerate(slots):
         ok=[e for e in alts if e["name"].lower() not in dset] or alts
+        if easy:
+            simple=[e for e in ok if e.get("lvl",1)<=1]
+            if simple: ok=simple
         liked=[e for e in ok if e["name"].lower() in bset]
         src=liked if liked else ok
         out.append(src[(rot+i)%len(src)])
@@ -543,6 +561,13 @@ def main():
     pool_names=set(x["name"].lower() for x in BREAKFAST+LUNCH+SNACKS+DINNER)
     orphan=[r["name"] for r in ALL if r["name"].lower() not in pool_names]
     assert not orphan, "Rezept ohne Tagesplan-Option: "+repr(orphan)
+    # Jeder Platz braucht auch im Anfaenger-Modus noch Auswahl zum Tauschen.
+    thin=[]
+    for key,day in program.items():
+        for i,s in enumerate(day["slots"]):
+            easy=[e for e in s["alts"] if e.get("lvl",1)<=1]
+            if len(easy)<2: thin.append(key+"/Platz "+str(i+1)+": "+str(len(easy))+" Anfaengerübung(en)")
+    assert not thin, "Zu wenig Anfaenger-Alternativen: "+repr(thin)
 
     packs={"rezepte":{"replaceMeals":True,"meals":ALL},
            "wochenplan":{"dayplan":dayplan},
