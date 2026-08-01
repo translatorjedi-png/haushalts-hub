@@ -1,3 +1,6 @@
 # Vom Workflow erzeugte / sensible Dateien (nicht ins Repo)
 sa.json
 packs/likes.json
+
+# Python-Cache
+packs/__pycache__/

@@ -135,6 +135,16 @@
   .dpport .pa{color:#9C5BA0;}
   .dpport .pb{color:var(--accent);}
   .dpkcal{font-size:12px;color:var(--muted);margin-top:3px;}
+  .dpcarry{font-size:12px;color:var(--done);white-space:nowrap;}
+  .dpopt.carry{border-style:dashed;}
+  .dpsum{font-size:12px;color:var(--muted);margin:-4px 0 8px;}
+  .dpsum b{color:var(--ink);font-weight:600;}
+  .info{background:#F4F6FA;border:1px solid var(--line);border-radius:10px;padding:11px 13px;
+        font-size:13px;line-height:1.55;color:var(--ink);margin-bottom:14px;}
+  .info b{font-weight:600;}
+  .info .h{display:block;font-family:var(--serif);font-size:15px;margin-bottom:4px;}
+  .trainmsg{color:var(--done);font-size:13px;margin:2px 0 12px;}
+  .exalt{color:var(--muted);font-size:11px;margin-left:2px;}
   #export-box{min-height:120px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;}
   .kfilter{display:inline-flex;gap:4px;}
   .kfbtn{background:transparent;border:1px solid var(--line);border-radius:999px;padding:3px 10px;font-size:11px;color:var(--muted);cursor:pointer;text-transform:none;letter-spacing:0;}
@@ -176,6 +186,7 @@
   var authUser = null;
   var loginErr = "";
   var importMsg = "";
+  var trainMsg = "";
   var syncStarted = false;
 
   var uid = function(){ return Math.random().toString(36).slice(2,9); };
@@ -247,17 +258,20 @@
 
   /* -------- Einkaufsliste: parsen, konsolidieren (summieren), kategorisieren -------- */
   var SHOP_CATS = [
-    { name:"Obst & Gemüse", kw:["apfel","banane","gurke","paprika","tomate","zwiebel","knoblauch","brokkoli","zucchini","kartoffel","karotte","champignon","salat","oliven","zitrone","ingwer","petersilie","dill","schnittlauch","beeren","obst","minze","spinat","gemüse","avocado"] },
-    { name:"Fleisch & Fisch", kw:["pute","hähnchen","hühner","faschiertes","rind","schwein","steak","schinken","lachs","thunfisch","garnelen","filet"] },
-    { name:"Milch, Käse & Eier", kw:["eier","milch","skyr","joghurt","topfen","quark","cottage","cheese","frischkäse","käse","feta","parmesan","sauerrahm","crème","butter","hüttenkäse"] },
-    { name:"Trocken, Konserven & Backen", kw:["reis","nudel","spaghetti","couscous","bulgur","hafer","brot","wrap","tortilla","passata","bohnen","mais","dose","linsen","chia","nüsse","paranuss","backpulver","öl","sojasauce","dressing","fajita","gewürz","kreuzkümmel","paprikapulver","senf","croutons","erdnussmus","kakao","honig","ahornsirup","zartbitter","schokolade","datteln","oregano","rosmarin"] },
+    { name:"Obst & Gemüse", kw:["apfel","banane","gurke","paprika","tomate","zwiebel","knoblauch","brokkoli","zucchini","kartoffel","karotte","champignon","salat","oliven","zitrone","limette","ingwer","petersilie","dill","schnittlauch","basilikum","koriander","beeren","obst","minze","spinat","gemüse","avocado","rucola","fenchel","blumenkohl","kraut","sellerie","radieschen","grüne bohnen","birne","orange","pilz"] },
+    { name:"Fleisch & Fisch", kw:["pute","hähnchen","hühner","faschiertes","rind","schwein","steak","schinken","lachs","thunfisch","garnelen","filet","forelle","kabeljau","speck"] },
+    { name:"Milch, Käse & Eier", kw:["eier","milch","skyr","joghurt","topfen","quark","cottage","cheese","frischkäse","käse","feta","parmesan","sauerrahm","crème","butter","hüttenkäse","mozzarella","ricotta","halloumi","obers"] },
+    { name:"Trocken, Konserven & Backen", kw:["reis","nudel","spaghetti","couscous","bulgur","quinoa","hafer","brot","wrap","tortilla","passata","bohnen","kichererbsen","mais","dose","linsen","chia","nüsse","mandel","paranuss","kürbiskern","sonnenblumenkern","pinienkern","sesam","rosinen","kokos","datteln","backpulver","öl","sojasauce","dressing","fajita","gewürz","curry","kreuzkümmel","paprikapulver","senf","croutons","erdnussmus","kakao","honig","ahornsirup","zartbitter","schokolade","oregano","rosmarin","thymian"] },
   ];
   var SHOP_ORDER = ["Obst & Gemüse","Fleisch & Fisch","Milch, Käse & Eier","Tiefkühl","Trocken, Konserven & Backen","Sonstiges"];
   var FOOD_SYN = { "tomate":"tomaten", "kartoffel":"kartoffeln", "banane":"bananen" };
-  var SHOP_SKIP = { "salz":1,"pfeffer":1,"salz, pfeffer":1,"salz und pfeffer":1 };
+  // Gewürze, die immer im Haus sind — sonst stehen sie jede Woche auf der Liste.
+  var SHOP_SKIP = { "salz":1,"pfeffer":1,"salz, pfeffer":1,"salz und pfeffer":1,
+                    "muskat":1,"zimt":1,"vanille":1,"chiliflocken":1 };
   function catFor(name, unit){
     var n=String(name).toLowerCase();
     if(/tk-|tiefkühl|gefroren|\(tk\)/.test(n)) return "Tiefkühl";
+    if(/kokosmilch/.test(n)) return "Trocken, Konserven & Backen";  // Konserve, nicht Molkerei
     if(/öl$|öl\s/.test(n)) return "Trocken, Konserven & Backen";   // Olivenöl etc. (nicht Oliven)
     if(/dose/.test(String(unit||"").toLowerCase())) return "Trocken, Konserven & Backen";
     for(var i=0;i<SHOP_CATS.length;i++){ var c=SHOP_CATS[i];
@@ -366,6 +380,27 @@
     return set;
   }
 
+  // Gericht, das am Vortag im selben Slot gewählt wurde. Es wird heute als
+  // zusätzliche Option angeboten -> zweimal wählen = für 2 Tage kochen
+  // (die Einkaufsliste verdoppelt die Zutaten dann automatisch).
+  function carryOpt(dayIdx, slotK){
+    if(dayIdx<=0) return null;
+    var days=(state.dayplan||{}).days||{};
+    var prev=days[DAYS[dayIdx-1]]; var ps=prev&&prev[slotK];
+    if(!ps||!ps.pick) return null;
+    return (ps.opts||[]).find(function(x){ return x.key===ps.pick; }) || null;
+  }
+  function slotOpts(dayIdx, slotK, slot){
+    var opts=(slot.opts||[]).slice();
+    var c=carryOpt(dayIdx, slotK);
+    if(c && !opts.some(function(x){ return x.key===c.key; })){
+      opts.push({ key:c.key, name:c.name, a:c.a, b:c.b, kcal:c.kcal, carry:true });
+    }
+    return opts;
+  }
+  // "~420 / ~620" -> [420,620]
+  function kcalPair(s){ var m=String(s||"").match(/(\d+)\D+?(\d+)/); return m?[+m[1],+m[2]]:null; }
+
   function importSection(){
     var h = "";
     h += '<div class="subhead" style="margin-top:26px"><span>Import</span></div>';
@@ -433,17 +468,35 @@
   }
 
   function viewTraining(){
-    var t = state.training; var prog = t.program;
+    var t = state.training; var prog = t.program || {};
+    var log = t.log || [];
+    var anySlots = Object.keys(prog).some(function(k){ return (prog[k].slots||[]).length; });
     var h = "";
-    h += '<div class="empty small">Übungen sind frei editierbar. „Trainiert ✓“ trägt die Einheit mit Datum ein.</div>';
+    if(anySlots){
+      h += '<div class="info"><span class="h">Die Übungen wechseln jetzt von selbst</span>'
+         +   'Jeder Trainingstag hat pro Muskelgruppe mehrere Varianten. '
+         +   '<b>„Trainiert ✓“ trägt die Einheit ein <i>und</i> stellt für das nächste Mal andere Übungen ein.</b> '
+         +   'Nur umschalten ohne Eintrag: <b>🔄 Andere Übungen</b>. '
+         +   'Was ihr mit 👍 markiert, bleibt stehen; 👎 kommt nicht mehr.'
+         + '</div>';
+    } else {
+      h += '<div class="empty small">Übungen sind frei editierbar. „Trainiert ✓“ trägt die Einheit mit Datum ein. '
+         + '<b>Für den wechselnden Übungspool einmal in der Küche „📥 Training laden“ tippen.</b></div>';
+    }
+    if(trainMsg) h += '<div class="trainmsg">'+esc(trainMsg)+'</div>';
     Object.keys(prog).forEach(function(key){
       var day = prog[key];
+      var nAlt = (day.slots||[]).reduce(function(n,s){ return n+(s.length>1?1:0); },0);
       h += '<div class="card">'
          +   '<div class="cardhead">'
          +     '<input class="daylabel" value="'+esc(day.label)+'" data-edit="day-label" data-key="'+key+'" />'
          +     '<button class="primary" data-action="log-session" data-key="'+key+'">Trainiert ✓</button>'
          +   '</div>';
-      day.ex.forEach(function(e){
+      if(nAlt){
+        h += '<div class="row" style="margin:-4px 0 8px"><button class="chip" data-action="train-rotate" data-key="'+key+'">🔄 Andere Übungen</button>'
+           +   '<span class="exalt" style="align-self:center">'+nAlt+' von '+day.slots.length+' Plätzen haben Varianten</span></div>';
+      }
+      (day.ex||[]).forEach(function(e){
         h += '<div class="exitem">'
            +   '<div class="exrow">'
            +     '<input class="exname" value="'+esc(e.name)+'" data-edit="ex-name" data-key="'+key+'" data-exid="'+e.id+'" />'
@@ -453,8 +506,8 @@
         var liked = (t.prefs||{})[e.name.toLowerCase()]||0;
         var meta = '';
         if(e.en) meta += '<span class="exen">'+esc(e.en)+'</span>';
-        meta += '<button class="exlk'+(liked===1?' on':'')+'" data-action="ex-like" data-name="'+esc(e.name)+'" aria-label="gefällt mir">👍</button>';
-        meta += '<button class="exdk'+(liked===-1?' on':'')+'" data-action="ex-dislike" data-name="'+esc(e.name)+'" aria-label="gefällt mir nicht">👎</button>';
+        meta += '<button class="exlk'+(liked===1?' on':'')+'" data-action="ex-like" data-key="'+key+'" data-name="'+esc(e.name)+'" aria-label="gefällt mir">👍</button>';
+        meta += '<button class="exdk'+(liked===-1?' on':'')+'" data-action="ex-dislike" data-key="'+key+'" data-name="'+esc(e.name)+'" aria-label="gefällt mir nicht">👎</button>';
         h += '<div class="exmeta">'+meta+'</div>';
         if(e.img) h += '<a href="'+esc(e.img2||e.img)+'" target="_blank" rel="noopener">'
                      +   '<img class="eximg" src="'+esc(e.img)+'" data-f0="'+esc(e.img)+'"'+(e.img2?' data-f1="'+esc(e.img2)+'" data-fr="0"':'')+' alt="'+esc(e.en||e.name)+'" loading="eager" onerror="this.parentNode.style.display=\'none\'" />'
@@ -468,11 +521,13 @@
       h += '</div>';
     });
 
-    h += '<div class="subhead" style="margin-top:26px"><span>Verlauf</span></div>';
-    if(t.log.length===0){
+    h += '<div class="subhead" style="margin-top:26px"><span>Verlauf ('+log.length+')</span>'
+       +   (log.length ? '<button class="linkbtn" data-action="log-clear">Verlauf leeren</button>' : '')
+       + '</div>';
+    if(log.length===0){
       h += '<div class="empty">Noch keine Einheit eingetragen.</div>';
     } else {
-      h += '<ul class="list">' + t.log.map(function(l){
+      h += '<ul class="list">' + log.map(function(l){
         var d = new Date(l.date).toLocaleDateString("de-AT",{weekday:"short",day:"2-digit",month:"2-digit"});
         return '<li class="logrow">'
           + '<span style="color:var(--done)">✓</span>'
@@ -490,7 +545,20 @@
     var prefs = dp.prefs || {};
     var days = dp.days || {};
     var h = "";
-    h += '<div class="empty small">Tippe pro Mahlzeit deine Wahl an — die App merkt sich, was euch schmeckt (❤) und sortiert Favoriten nach oben. Portionen: <b style="color:#9C5BA0">A</b> = Anna, <b style="color:var(--accent)">D</b> = Andriy.</div>';
+    h += '<div class="info"><span class="h">Neu: Energie am Vormittag</span>'
+       +   'Frühstück und Mittagessen sind jetzt die <b>großen</b> Mahlzeiten, der Abend ist '
+       +   'leicht und kohlenhydratarm (Eiweiß + Gemüse, kaum Reis/Nudeln/Brot). '
+       +   'Ziel pro Tag: <b>Anna ~1450</b> (420 · 480 · 180 · 370) · '
+       +   '<b>Andriy ~2050</b> (620 · 700 · 280 · 450).'
+       + '</div>';
+    h += '<div class="info"><span class="h">Damit der Tag trägt</span>'
+       +   '<b>Eisen + Vitamin C zusammen</b> (Fleisch/Linsen/Spinat mit Zitrone, Paprika oder Tomate) — '
+       +   'aber <b>kein Kaffee oder Tee zur eisenreichen Mahlzeit</b>, das bremst die Aufnahme. '
+       +   'Zu jeder Mahlzeit Eiweiß, Vollkorn statt Weißmehl, Nüsse und Kerne für Magnesium. '
+       +   'Gerichte mit dem Tag <span class="tag">energie</span> sind genau darauf gebaut. '
+       +   '<i>Das ist Ernährung, kein Arztersatz — bei anhaltender Müdigkeit bleibt die ärztliche Abklärung der Weg.</i>'
+       + '</div>';
+    h += '<div class="empty small">Tippe pro Mahlzeit deine Wahl an — die App merkt sich, was euch schmeckt (❤) und sortiert Favoriten nach oben. Portionen: <b style="color:#9C5BA0">A</b> = Anna, <b style="color:var(--accent)">D</b> = Andriy. Ein gewähltes Gericht steht am <b>nächsten Tag</b> zusätzlich zur Wahl (↻) — beide Tage antippen heißt: einmal kochen, zweimal essen.</div>';
     var hasContent = DAYS.some(function(d){
       var day=days[d]; return day && SLOTS.some(function(s){ return day[s.k] && day[s.k].opts && day[s.k].opts.length; });
     });
@@ -498,20 +566,32 @@
       h += '<div class="empty">Noch kein Tagesplan. Importiere einen in <b>Küche → Import</b> (Feld „dayplan").</div>';
       return h;
     }
-    DAYS.forEach(function(d){
+    DAYS.forEach(function(d, di){
       var day = days[d]; if(!day) return;
       var hasAny = SLOTS.some(function(s){ return day[s.k] && day[s.k].opts && day[s.k].opts.length; });
       if(!hasAny) return;
       h += '<div class="dpday"><div class="dpdayhd">'+d+'</div>';
+      // Tagessumme der gewählten Mahlzeiten
+      var sa=0, sb=0, nPick=0;
+      SLOTS.forEach(function(s){
+        var slot=day[s.k]; if(!slot||!slot.pick) return;
+        var o=(slot.opts||[]).find(function(x){ return x.key===slot.pick; });
+        var kp=o&&kcalPair(o.kcal); if(kp){ sa+=kp[0]; sb+=kp[1]; }
+        nPick++;
+      });
+      if(nPick){
+        h += '<div class="dpsum">'+nPick+' von 4 gewählt · Anna <b>~'+sa+'</b> kcal · Andriy <b>~'+sb+'</b> kcal</div>';
+      }
       SLOTS.forEach(function(s){
         var slot = day[s.k]; if(!slot || !slot.opts || !slot.opts.length) return;
         h += '<div class="dpslot"><div class="dpslotlabel">'+esc(s.label)+'</div>';
-        var opts = slot.opts.slice().sort(function(x,y){ return (prefs[y.key]||0)-(prefs[x.key]||0); });
+        var opts = slotOpts(di, s.k, slot).sort(function(x,y){ return (prefs[y.key]||0)-(prefs[x.key]||0); });
         opts.forEach(function(o){
           var chosen = slot.pick===o.key;
           var fav = prefs[o.key]||0;
-          h += '<button class="dpopt'+(chosen?' on':'')+'" data-action="plan-pick" data-day="'+d+'" data-slot="'+s.k+'" data-key="'+esc(o.key)+'">'
+          h += '<button class="dpopt'+(chosen?' on':'')+(o.carry?' carry':'')+'" data-action="plan-pick" data-day="'+d+'" data-slot="'+s.k+'" data-key="'+esc(o.key)+'">'
              +   '<div class="dpopthd"><span class="dpname">'+esc(o.name)+'</span>'
+             +     (o.carry?'<span class="dpcarry">↻ wie gestern</span>':'')
              +     (fav?'<span class="dpfav">❤ '+fav+'</span>':'')
              +     (chosen?'<span class="dppick">✓ gewählt</span>':'')
              +   '</div>'
@@ -586,6 +666,39 @@
     if(add.length){ putShopping(add.concat(state.shopping)); }
   }
 
+  function mkEx(e){
+    e = e || {};
+    var o={ id:uid(), name:String(e.name||""), scheme:String(e.scheme||"3 × 10") };
+    if(e.en)   o.en   = String(e.en);
+    if(e.img)  o.img  = String(e.img);
+    if(e.img2) o.img2 = String(e.img2);
+    if(e.link) o.link = String(e.link);
+    return o;
+  }
+
+  // Stellt für einen Trainingstag die nächste Übungsvariante ein: pro Platz
+  // (Muskelgruppe) eine Alternative weiter. 👍 bleibt stehen, 👎 fällt raus.
+  // Gibt false zurück, wenn der Tag (noch) keine Varianten hat.
+  function rotateProgram(key, step){
+    var t = state.training;
+    var day = (t.program||{})[key];
+    if(!day || !(day.slots||[]).length) return false;
+    var prefs = t.prefs || {};
+    var rot = (typeof day.rot==="number" ? day.rot : 0) + (step||1);
+    var ex = day.slots.map(function(alts, i){
+      var ok = alts.filter(function(e){ return prefs[(e.name||"").toLowerCase()]!==-1; });
+      if(!ok.length) ok = alts;
+      var liked = ok.filter(function(e){ return prefs[(e.name||"").toLowerCase()]===1; });
+      var src = liked.length ? liked : ok;
+      var pos = ((rot+i) % src.length + src.length) % src.length;
+      return mkEx(src[pos]);
+    }).filter(function(e){ return e.name; });
+    var prog = Object.assign({}, t.program);
+    prog[key] = Object.assign({}, day, { rot:rot, ex:ex });
+    putTraining(Object.assign({}, t, { program:prog }));
+    return true;
+  }
+
   // Importiert von Claude vorbereitete Rezepte/Trainingspläne. Tolerant:
   // fehlende Felder werden ignoriert. Gibt eine kurze Erfolgsmeldung zurück.
   function applyImport(data){
@@ -635,14 +748,12 @@
         var d = data.training.program[key] || {};
         prog[key] = {
           label: String(d.label||("Tag "+key)),
-          ex: (Array.isArray(d.ex)?d.ex:[]).map(function(e){
-            var o={ id:uid(), name:String(e.name||""), scheme:String(e.scheme||"3 × 10") };
-            if(e.en)   o.en   = String(e.en);
-            if(e.img)  o.img  = String(e.img);
-            if(e.img2) o.img2 = String(e.img2);
-            if(e.link) o.link = String(e.link);
-            return o;
-          }),
+          rot: (typeof d.rot==="number" ? d.rot : 0),
+          ex: (Array.isArray(d.ex)?d.ex:[]).map(mkEx),
+          // slots = pro Muskelgruppe mehrere Varianten; daraus rotiert die App.
+          slots: Array.isArray(d.slots)
+            ? d.slots.map(function(alts){ return (Array.isArray(alts)?alts:[]).map(mkEx); })
+            : [],
         };
       });
       putTraining(Object.assign({}, state.training, { program: prog }));
@@ -707,7 +818,7 @@
     }
     if(a==="logout"){ if(fbAuth) fbAuth.signOut(); return; }
 
-    if(a==="tab"){ state.tab = el.getAttribute("data-tab"); render(); return; }
+    if(a==="tab"){ state.tab = el.getAttribute("data-tab"); trainMsg=""; render(); return; }
 
     if(a==="shop-add"){
       var inp = document.getElementById("shop-input"); var v=(inp.value||"").trim();
@@ -742,7 +853,17 @@
       if(!dp.prefs) dp.prefs={}; if(!dp.days) dp.days={};
       var slot=dp.days[day] && dp.days[day][slotK];
       if(slot){
-        if(slot.pick!==optKey){ dp.prefs[optKey]=(dp.prefs[optKey]||0)+1; slot.pick=optKey; }
+        if(slot.pick!==optKey){
+          // "↻ wie gestern" ist nur eingeblendet — beim Wählen fest eintragen,
+          // sonst findet die Einkaufsliste das Gericht nicht.
+          if(!(slot.opts||[]).some(function(x){ return x.key===optKey; })){
+            var c=carryOpt(DAYS.indexOf(day), slotK);
+            if(c && c.key===optKey){
+              slot.opts=(slot.opts||[]).concat([{key:c.key,name:c.name,a:c.a,b:c.b,kcal:c.kcal}]);
+            }
+          }
+          dp.prefs[optKey]=(dp.prefs[optKey]||0)+1; slot.pick=optKey;
+        }
         else { slot.pick=null; }   // erneutes Tippen = abwählen
         putDayplan(dp); render();
       }
@@ -798,9 +919,21 @@
 
     if(a==="log-session"){
       var entry={ id:uid(), day:state.training.program[key].label, date:new Date().toISOString() };
-      putTraining(Object.assign({},state.training,{log:[entry].concat(state.training.log).slice(0,60)})); render(); return;
+      putTraining(Object.assign({},state.training,{log:[entry].concat(state.training.log||[]).slice(0,60)}));
+      // Eintragen UND für das nächste Mal neue Übungen einstellen.
+      trainMsg = rotateProgram(key,1)
+        ? "Eingetragen ✓ — für das nächste Mal sind neue Übungen eingestellt."
+        : "Eingetragen ✓ — für wechselnde Übungen einmal in der Küche „📥 Training laden“ tippen.";
+      render(); return;
     }
-    if(a==="log-del"){ putTraining(Object.assign({},state.training,{log:state.training.log.filter(function(l){return l.id!==id;})})); render(); return; }
+    if(a==="train-rotate"){
+      trainMsg = rotateProgram(key,1)
+        ? "Neue Übungen eingestellt — ohne Eintrag im Verlauf."
+        : "Dieser Tag hat noch keine Varianten — in der Küche „📥 Training laden“ tippen.";
+      render(); return;
+    }
+    if(a==="log-del"){ putTraining(Object.assign({},state.training,{log:(state.training.log||[]).filter(function(l){return l.id!==id;})})); render(); return; }
+    if(a==="log-clear"){ putTraining(Object.assign({},state.training,{log:[]})); trainMsg="Verlauf geleert."; render(); return; }
 
     if(a==="ex-add"){
       var ei=document.getElementById("ex-input-"+key); var ev2=(ei.value||"").trim();
@@ -819,7 +952,10 @@
       var lprefs=Object.assign({}, state.training.prefs||{});
       lprefs[lnm] = (lprefs[lnm]===lval ? 0 : lval);
       if(!lprefs[lnm]) delete lprefs[lnm];
-      putTraining(Object.assign({}, state.training, { prefs:lprefs })); render(); return;
+      putTraining(Object.assign({}, state.training, { prefs:lprefs }));
+      // 👎 = sofort weg, 👍 = ab jetzt fix: Auswahl neu bestimmen (ohne weiterzudrehen).
+      if(key) rotateProgram(key, 0);
+      render(); return;
     }
   });
 
