@@ -276,6 +276,107 @@ ABEND = [
    ["Hähnchen in Streifen braten.","Kraut und Karotten fein hobeln.","Mit Sojasauce, Sesamöl und Limette anmachen.","Hähnchen, Frühlingszwiebel und Erdnüsse darüber."]),
 ]
 
+# ---- Nachschub (August 2026): mehr Auswahl, damit 5 Optionen je Mahlzeit
+# ---- ohne Wiederholungen durch die Woche kommen.
+FRUEHSTUECK += [
+ R("Ei-Muffins mit Gemüse & Käse",["frühstück","high-protein","meal-prep"],
+   ["Eier 6","Paprika 1","Zucchini 1","Reibekäse 80 g","Schinken 80 g","Vollkornbrot 2 Scheiben","Schnittlauch"],
+   ["Ofen auf 180 °C, Muffinform einfetten.","Gemüse fein würfeln, mit verquirlten Eiern, Schinken und Käse mischen.","In die Form füllen, 20 Min backen.","Halten 3 Tage im Kühlschrank - gleich die doppelte Menge backen."]),
+ R("Skyr-Porridge mit Kakao & Banane",["frühstück","high-protein","süß","schnell"],
+   ["Haferflocken 110 g","Milch 350 ml","Skyr 250 g","Kakao 2 EL","Banane 2","Honig 2 TL","Nüsse 30 g"],
+   ["Hafer mit Milch und Kakao aufkochen, 5 Min quellen lassen.","Vom Herd nehmen, Skyr unterrühren - so bleibt das Eiweiß cremig.","Mit Banane, Nüssen und Honig servieren."]),
+ R("Käse-Tomaten-Toast mit Ei",["frühstück","high-protein","schnell"],
+   ["Vollkornbrot 4 Scheiben","Reibekäse 100 g","Tomaten 3","Eier 3","Oregano 1 TL","Olivenöl 1 EL"],
+   ["Brot mit Tomatenscheiben und Käse belegen.","Unter dem Grill 6 Min überbacken.","Eier dazu braten, Oregano darüber."]),
+ R("Grießbrei mit Beeren & Mandeln",["frühstück","süß","schnell"],
+   ["Grieß 100 g","Milch 500 ml","TK-Beeren 200 g","Mandeln 40 g","Honig 2 TL","Zimt 1 TL"],
+   ["Milch aufkochen, Grieß einrühren, 3 Min quellen lassen.","Beeren kurz erwärmen.","Grießbrei mit Beeren, Mandeln und Honig servieren."]),
+ R("Räucherforelle-Brot mit Ei",["frühstück","high-protein","fisch","omega-3"],
+   ["Vollkornbrot 4 Scheiben","Räucherforelle 150 g","Eier 2","Frischkäse 80 g","Kren 1 TL","Zitrone 1/2","Dill"],
+   ["Brot mit Frischkäse und etwas Kren bestreichen.","Forellenfilet darauf zupfen.","Eier hart kochen, in Scheiben darauflegen, mit Zitrone und Dill servieren."]),
+ R("Erdnussbutter-Hafer-Bowl mit Apfel",["frühstück","energie","schnell"],
+   ["Haferflocken 110 g","Milch 350 ml","Erdnussmus 3 EL","Apfel 2","Zimt 1 TL","Skyr 150 g"],
+   ["Hafer mit Milch 5 Min kochen.","Erdnussmus einrühren.","Mit Apfelwürfeln, Zimt und einem Löffel Skyr servieren."]),
+ R("Vollkorn-Porridge mit Birne & Walnüssen",["frühstück","energie","meal-prep"],
+   ["Haferflocken 110 g","Milch 400 ml","Birne 2","Walnüsse 40 g","Honig 2 TL","Zimt 1 TL","Salz 1 Prise"],
+   ["Hafer mit Milch und Salz aufkochen, quellen lassen.","Birne würfeln und kurz mitziehen lassen.","Mit Walnüssen und Honig servieren."]),
+ R("Frühstücks-Jause mit Ei",["frühstück","high-protein","schnell"],
+   ["Vollkornbrot 4 Scheiben","Schinken 120 g","Käse 100 g","Eier 3","Gurke 1","Tomaten 2","Butter 20 g"],
+   ["Eier 7 Min kochen, schrecken, schälen.","Brot buttern, mit Schinken und Käse belegen.","Ei, Gurke und Tomate dazu anrichten."]),
+]
+MITTAG += [
+ R("Hähnchen-Gyros mit Reis & Tzatziki",["mittag","high-protein","schnell"],
+   ["Hähnchenbrust 400 g","Reis 180 g","Tzatziki 200 g","Paprika 2","Rote Zwiebel 1","Gyros-Gewürz 2 TL","Olivenöl 1 EL","Tomaten 2"],
+   ["Hähnchen in Streifen mit Gyros-Gewürz marinieren.","Reis kochen.","Fleisch mit Paprika und Zwiebel scharf anbraten.","Mit Reis, Tomaten und Tzatziki servieren.", VORKOCH]),
+ R("Lachs-Nudeln mit Spinat & Frischkäse",["mittag","fisch","omega-3","schnell"],
+   ["Lachsfilet 350 g","Vollkornnudeln 220 g","Blattspinat 250 g","Frischkäse 120 g","Knoblauch 2 Zehen","Zitrone 1/2","Parmesan 30 g"],
+   ["Nudeln kochen.","Lachs würfeln und 4 Min braten, herausnehmen.","Knoblauch und Spinat zusammenfallen lassen, Frischkäse mit etwas Nudelwasser zur Sauce rühren.","Nudeln und Lachs untermischen, mit Zitrone und Parmesan abschmecken."]),
+ R("Linsensalat mit Feta & Ei",["mittag","vegetarisch","eisen","meal-prep","energie"],
+   ["Berglinsen 200 g","Feta 150 g","Eier 4","Cherrytomaten 250 g","Gurke 1","Rote Zwiebel 1","Zitrone 1","Olivenöl 3 EL","Petersilie"],
+   ["Linsen 20 Min kochen, abkühlen lassen.","Eier 8 Min kochen, vierteln.","Gemüse schneiden, alles mischen.","Mit reichlich Zitrone und Öl abschmecken - die Säure hilft, das Eisen aus den Linsen aufzunehmen.", VORKOCH]),
+ R("Puten-Kartoffel-Blech mit Kräutern",["mittag","high-protein","vorkochen"],
+   ["Putenbrust 400 g","Kartoffeln 600 g","Karotten 3","Zucchini 1","Olivenöl 2 EL","Rosmarin","Knoblauch 2 Zehen","Paprikapulver 1 TL"],
+   ["Ofen 200 °C. Kartoffeln und Gemüse würfeln, mit Öl und Gewürzen mischen.","20 Min backen.","Pute in Stücken dazugeben, weitere 15 Min backen.", VORKOCH]),
+ R("Reisnudel-Bowl mit Hähnchen & Erdnusssauce",["mittag","high-protein","schnell"],
+   ["Hähnchenbrust 400 g","Reisnudeln 200 g","Karotten 2","Gurke 1","Frühlingszwiebel 2","Erdnussmus 3 EL","Sojasauce 2 EL","Limette 1","Erdnüsse 30 g"],
+   ["Reisnudeln nach Packung garen, kalt abspülen.","Hähnchen in Streifen braten.","Erdnussmus mit Sojasauce, Limette und etwas Wasser zur Sauce rühren.","Alles mischen, Erdnüsse darüber."]),
+ R("Faschierte Laibchen mit Kartoffelpüree",["mittag","eisen","high-protein","vorkochen"],
+   ["Faschiertes Rind 450 g","Kartoffeln 700 g","Eier 1","Semmelbrösel 40 g","Zwiebel 1","Milch 100 ml","Butter 20 g","Petersilie","Senf 1 TL"],
+   ["Kartoffeln kochen, mit Milch und Butter stampfen.","Faschiertes mit Ei, Bröseln, Zwiebel und Senf verkneten, Laibchen formen.","In der Pfanne je Seite 4-5 Min braten.","Mit Püree und Petersilie servieren.", VORKOCH]),
+ R("Thunfisch-Nudel-Auflauf mit Erbsen",["mittag","fisch","vorkochen"],
+   ["Vollkornnudeln 220 g","Thunfisch 2 Dosen","TK-Erbsen 200 g","Passata 400 g","Reibekäse 100 g","Zwiebel 1","Knoblauch 1 Zehe"],
+   ["Nudeln al dente kochen.","Zwiebel und Knoblauch anbraten, Passata, Thunfisch und Erbsen dazu.","Mit den Nudeln in die Form, Käse darüber.","Bei 200 °C 20 Min backen.", VORKOCH]),
+ R("Falafel-Bowl mit Couscous & Joghurt-Dip",["mittag","vegetarisch","eisen","schnell"],
+   ["TK-Falafel 12 Stück","Couscous 180 g","Griechischer Joghurt 200 g","Gurke 1","Tomaten 3","Rote Zwiebel 1","Zitrone 1","Olivenöl 2 EL","Petersilie"],
+   ["Falafel nach Packung im Ofen knusprig backen.","Couscous quellen lassen.","Joghurt mit Zitrone, Salz und Petersilie zum Dip rühren.","Alles in Schalen anrichten."]),
+]
+SNACK += [
+ R("Topfen-Vanille-Creme mit Himbeeren",["dessert","süß","high-protein","schnell"],
+   ["Topfen 300 g","TK-Himbeeren 150 g","Vanillezucker 1 Pkg","Honig 1 TL","Mandeln 20 g"],
+   ["Topfen mit Vanillezucker und Honig cremig rühren.","Himbeeren auftauen und unterheben.","Mit gehobelten Mandeln bestreuen."]),
+ R("Bananenbrot (Vollkorn)",["dessert","süß","meal-prep"],
+   ["Vollkornmehl 180 g","Banane 3","Eier 2","Griechischer Joghurt 100 g","Walnüsse 50 g","Backpulver 1 TL","Zimt 1 TL","Honig 2 EL"],
+   ["Bananen zerdrücken, mit Eiern, Joghurt und Honig verrühren.","Mehl, Backpulver, Zimt und Nüsse unterheben.","Bei 175 °C 40 Min backen, auskühlen lassen.","Hält eine Woche - eine Scheibe pro Snack."]),
+ R("Schinken-Käse-Röllchen mit Gurke",["snack","high-protein","schnell"],
+   ["Schinken 150 g","Frischkäse 100 g","Gurke 1","Paprika 1","Schnittlauch"],
+   ["Schinkenscheiben mit Frischkäse bestreichen.","Gurken- und Paprikastreifen darauflegen, aufrollen.","Mit Schnittlauch bestreuen."]),
+ R("Warme Zimt-Birne mit Topfen",["dessert","süß","high-protein","schnell"],
+   ["Birne 2","Topfen 250 g","Zimt 1 TL","Honig 2 TL","Walnüsse 30 g"],
+   ["Birne würfeln und mit Zimt 4 Min dünsten.","Topfen mit Honig cremig rühren.","Warme Birne und Walnüsse darüber."]),
+ R("Gemüsesticks mit Hummus",["snack","schnell","eisen"],
+   ["Hummus 200 g","Karotten 3","Gurke 1","Paprika 2","Zitrone 1/2"],
+   ["Gemüse in Sticks schneiden.","Hummus mit einem Spritzer Zitrone verrühren.","Zusammen snacken - Kichererbsen liefern Eisen, die Paprika das Vitamin C dazu."]),
+ R("Beeren-Skyr-Shake mit Hafer",["snack","süß","high-protein","schnell","energie"],
+   ["Skyr 250 g","TK-Beeren 200 g","Haferflocken 40 g","Milch 200 ml","Honig 1 TL"],
+   ["Alles im Mixer glatt pürieren.","In zwei Gläser füllen.","Wenn er zu dick ist: noch einen Schuss Milch dazu."]),
+]
+ABEND += [
+ R("Puten-Gyros mit Krautsalat",["abend","high-protein","low-carb","schnell"],
+   ["Putenbrust 400 g","Weißkraut 400 g","Karotten 2","Griechischer Joghurt 150 g","Gyros-Gewürz 2 TL","Zitrone 1","Olivenöl 2 EL","Knoblauch 1 Zehe"],
+   ["Pute in Streifen mit Gyros-Gewürz marinieren und scharf braten.","Kraut und Karotten fein hobeln, mit Zitrone, Öl und Salz kräftig durchkneten.","Joghurt mit Knoblauch als Dip dazu."]),
+ R("Zucchini-Lasagne mit Faschiertem",["abend","eisen","high-protein","low-carb","vorkochen"],
+   ["Zucchini 4","Faschiertes Rind 350 g","Passata 400 g","Reibekäse 120 g","Frischkäse 100 g","Zwiebel 1","Knoblauch 2 Zehen","Oregano 1 TL"],
+   ["Zucchini längs in dünne Platten schneiden.","Faschiertes mit Zwiebel und Knoblauch anbraten, Passata dazu, 15 Min köcheln.","Abwechselnd Zucchini und Sauce schichten, Frischkäse und Reibekäse obenauf.","Bei 200 °C 30 Min backen, 5 Min ruhen lassen.", VORKOCH]),
+ R("Garnelen-Spinat-Pfanne",["abend","fisch","eisen","low-carb","schnell","energie"],
+   ["Garnelen 350 g","Blattspinat 300 g","Cherrytomaten 250 g","Knoblauch 3 Zehen","Zitrone 1","Olivenöl 2 EL","Chiliflocken","Feta 80 g"],
+   ["Knoblauch in Öl anschwitzen, Garnelen 3 Min braten, herausnehmen.","Spinat und Tomaten zusammenfallen lassen.","Garnelen zurück, mit Zitrone abschmecken, Feta darüber."]),
+ R("Hähnchen-Pilz-Pfanne mit grünen Bohnen",["abend","high-protein","low-carb"],
+   ["Hähnchenbrust 400 g","Champignons 300 g","Grüne Bohnen 400 g","Crème fraîche 80 g","Zwiebel 1","Knoblauch 1 Zehe","Thymian"],
+   ["Bohnen 6 Min blanchieren.","Hähnchen in Stücken anbraten, herausnehmen.","Pilze und Zwiebel braten, mit Crème fraîche binden.","Alles zusammenführen, mit Thymian abschmecken."]),
+ R("Rindfleisch-Brokkoli-Pfanne (asiatisch)",["abend","eisen","high-protein","low-carb","energie"],
+   ["Rindfleisch Streifen 300 g","Brokkoli 500 g","Paprika 1","Knoblauch 2 Zehen","Ingwer 1 Stück","Sojasauce 2 EL","Sesamöl 1 EL","Limette 1","Sesam 1 EL"],
+   ["Brokkoli 3 Min blanchieren.","Rindfleisch scharf anbraten, herausnehmen.","Knoblauch, Ingwer und Paprika braten, Brokkoli dazu.","Fleisch zurück, mit Sojasauce und Limette ablöschen, Sesam darüber."]),
+ R("Ofengemüse mit Feta & Ei",["abend","vegetarisch","low-carb","schnell"],
+   ["Zucchini 2","Paprika 2","Cherrytomaten 300 g","Rote Zwiebel 1","Feta 150 g","Eier 4","Olivenöl 2 EL","Oregano 1 TL"],
+   ["Gemüse würfeln, mit Öl und Oregano bei 200 °C 25 Min backen.","Feta darüber bröseln, Mulden formen und die Eier hineinschlagen.","Weitere 8 Min backen, bis das Eiweiß gestockt ist."]),
+ R("Hühnersuppe mit viel Gemüse",["abend","low-carb","vorkochen"],
+   ["Hühnerbrust 350 g","Karotten 3","Lauch 1","Sellerie 1 Stange","Zucchini 1","Petersilie","Suppenwürze 1 TL","Ingwer 1 Stück"],
+   ["Hühnerbrust in 1,5 l Wasser mit Ingwer 20 Min leise köcheln, herausnehmen und zerpflücken.","Gemüse klein schneiden und 10 Min in der Brühe garen.","Fleisch zurück, mit Suppenwürze und Petersilie abschmecken.", VORKOCH]),
+ R("Gefüllte Zucchini mit Pute & Käse",["abend","high-protein","low-carb","vorkochen"],
+   ["Zucchini 4","Putenbrust 350 g","Passata 300 g","Reibekäse 100 g","Zwiebel 1","Knoblauch 1 Zehe","Oregano 1 TL"],
+   ["Zucchini halbieren und aushöhlen.","Pute klein würfeln, mit Zwiebel, Knoblauch und dem Zucchini-Inneren anbraten, Passata dazu.","Zucchini füllen, Käse darüber, bei 190 °C 25 Min backen.", VORKOCH]),
+]
+
 ALL = FRUEHSTUECK + MITTAG + SNACK + ABEND
 
 # ============================================================ TAGESPLAN-POOLS
@@ -298,6 +399,14 @@ BREAKFAST=[
  o("Quinoa-Porridge mit Beeren","50 g Quinoa, Beeren, 15 g Mandeln","70 g Quinoa, Beeren, 25 g Mandeln","~420 / ~620"),
  o("Pilz-Omelett mit Vollkornbrot","2 Eier, Pilze, 1 Scheibe Brot","3 Eier, Pilze, 2 Scheiben Brot","~410 / ~610"),
  o("Topfencreme mit Kürbiskernen & Vollkornbrot","150 g Topfen, 1 Scheibe Brot","200 g Topfen, 2 Scheiben Brot","~420 / ~620"),
+ o("Ei-Muffins mit Gemüse & Käse","2 Muffins + 1 Scheibe Brot","3 Muffins + 1,5 Scheiben Brot","~420 / ~620"),
+ o("Skyr-Porridge mit Kakao & Banane","45 g Hafer, 100 g Skyr, 1 Banane","65 g Hafer, 150 g Skyr, 1 Banane","~420 / ~620"),
+ o("Käse-Tomaten-Toast mit Ei","1,5 Scheiben, 1 Ei","2,5 Scheiben, 2 Eier","~420 / ~620"),
+ o("Grießbrei mit Beeren & Mandeln","40 g Grieß, Beeren, 15 g Mandeln","60 g Grieß, Beeren, 25 g Mandeln","~410 / ~610"),
+ o("Räucherforelle-Brot mit Ei","1,5 Scheiben, 60 g Forelle","2,5 Scheiben, 90 g Forelle","~420 / ~620"),
+ o("Erdnussbutter-Hafer-Bowl mit Apfel","45 g Hafer, 1 EL Erdnussmus","65 g Hafer, 2 EL Erdnussmus","~430 / ~630"),
+ o("Vollkorn-Porridge mit Birne & Walnüssen","45 g Hafer, 1 Birne, 15 g Nüsse","65 g Hafer, 1 Birne, 25 g Nüsse","~420 / ~620"),
+ o("Frühstücks-Jause mit Ei","1,5 Scheiben, 1 Ei, Schinken & Käse","2,5 Scheiben, 2 Eier, Schinken & Käse","~420 / ~620"),
 ]
 LUNCH=[
  o("Hähnchen-Reis-Bowl","0,85 Portion","1,15 Portion","~480 / ~700"),
@@ -320,6 +429,14 @@ LUNCH=[
  o("Hähnchen-Fajitas (Vollkorn)","2 Fajitas","3-4 Fajitas","~490 / ~710"),
  o("Gefüllte Paprika mit Faschiertem & Reis","1,5 Hälften","2,5 Hälften","~480 / ~700"),
  o("Reste vom Vortag","0,85 Portion aufwärmen","1,15 Portion aufwärmen","~480 / ~700"),
+ o("Hähnchen-Gyros mit Reis & Tzatziki","0,85 Portion","1,15 Portion","~490 / ~710"),
+ o("Lachs-Nudeln mit Spinat & Frischkäse","0,85 Portion","1,15 Portion","~490 / ~710"),
+ o("Linsensalat mit Feta & Ei","0,85 Portion","1,15 Portion","~480 / ~700"),
+ o("Puten-Kartoffel-Blech mit Kräutern","0,85 Portion","1,15 Portion","~480 / ~700"),
+ o("Reisnudel-Bowl mit Hähnchen & Erdnusssauce","0,85 Portion","1,15 Portion","~490 / ~710"),
+ o("Faschierte Laibchen mit Kartoffelpüree","2 Laibchen + Püree","3 Laibchen + Püree","~490 / ~710"),
+ o("Thunfisch-Nudel-Auflauf mit Erbsen","0,85 Portion","1,15 Portion","~490 / ~710"),
+ o("Falafel-Bowl mit Couscous & Joghurt-Dip","5 Falafel + Couscous","7 Falafel + Couscous","~480 / ~700"),
 ]
 SNACKS=[
  o("Schoko-Quark-Mousse","1 Glas","1 großes Glas + Schoko","~180 / ~280"),
@@ -338,6 +455,12 @@ SNACKS=[
  o("Kürbiskern-Schoko-Riegel","1 Riegel","1,5 Riegel","~185 / ~285"),
  o("Beeren-Skyr-Eis am Stiel","1 Stück","2 Stück","~170 / ~275"),
  o("Erdnussbutter-Bananenbrot","1/2 Scheibe + Banane","1 Scheibe + Banane","~180 / ~285"),
+ o("Topfen-Vanille-Creme mit Himbeeren","1 Glas","1 großes Glas","~180 / ~280"),
+ o("Bananenbrot (Vollkorn)","1 Scheibe","1,5 Scheiben","~185 / ~285"),
+ o("Schinken-Käse-Röllchen mit Gurke","3 Röllchen","5 Röllchen","~180 / ~280"),
+ o("Warme Zimt-Birne mit Topfen","1 Portion","1,5 Portionen","~180 / ~280"),
+ o("Gemüsesticks mit Hummus","80 g Hummus + Gemüse","120 g Hummus + Gemüse","~180 / ~280"),
+ o("Beeren-Skyr-Shake mit Hafer","1 Glas","1 großes Glas","~180 / ~285"),
 ]
 DINNER=[
  o("Lachs mit Brokkoli & Zitrone","0,85 Portion","1,15 Portion","~370 / ~450"),
@@ -362,6 +485,14 @@ DINNER=[
  o("Omelett mit Spinat & Feta","0,85 Portion","1,15 Portion","~365 / ~445"),
  o("Hähnchen-Curry mit Blumenkohlreis","0,85 Portion","1,15 Portion","~370 / ~450"),
  o("Krautsalat mit Hähnchen (asiatisch)","0,85 Portion","1,15 Portion","~360 / ~440"),
+ o("Puten-Gyros mit Krautsalat","0,85 Portion","1,15 Portion","~370 / ~450"),
+ o("Zucchini-Lasagne mit Faschiertem","0,85 Portion","1,15 Portion","~380 / ~460"),
+ o("Garnelen-Spinat-Pfanne","0,85 Portion","1,15 Portion","~360 / ~440"),
+ o("Hähnchen-Pilz-Pfanne mit grünen Bohnen","0,85 Portion","1,15 Portion","~370 / ~450"),
+ o("Rindfleisch-Brokkoli-Pfanne (asiatisch)","0,85 Portion","1,15 Portion","~370 / ~455"),
+ o("Ofengemüse mit Feta & Ei","0,85 Portion","1,15 Portion","~370 / ~450"),
+ o("Hühnersuppe mit viel Gemüse","1 großer Teller","1,5 Teller + 1 Scheibe Brot","~350 / ~440"),
+ o("Gefüllte Zucchini mit Pute & Käse","1,5 Hälften","2,5 Hälften","~370 / ~450"),
 ]
 
 # ================================================================== TRAINING
@@ -464,7 +595,7 @@ def drop_only(pool, drop):
     kept=[x for x in pool if x["name"].lower() not in drop]
     return kept or pool   # nie ganz leer
 
-def week_options(pool, boost, k=4):
+def week_options(pool, boost, k=5):
     """Optionen fuer alle 7 Tage auf einmal.
 
     Pro Tag: 2 gelikte Gerichte + Rest. Beide Stroeme laufen ueber einen
