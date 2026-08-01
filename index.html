@@ -135,6 +135,10 @@
   .dpport .pa{color:#9C5BA0;}
   .dpport .pb{color:var(--accent);}
   .dpkcal{font-size:12px;color:var(--muted);margin-top:3px;}
+  .dptags{margin-top:5px;}
+  .dptags .tag{margin-right:4px;}
+  .tag.energy{background:#E7F0E1;color:#4A6B39;font-weight:600;}
+  .linkbtn.warn{color:#9B2C2C;font-weight:600;}
   .dpcarry{font-size:12px;color:var(--done);white-space:nowrap;}
   .dpopt.carry{border-style:dashed;}
   .dpsum{font-size:12px;color:var(--muted);margin:-4px 0 8px;}
@@ -193,6 +197,7 @@
   var importMsg = "";
   var trainMsg = "";
   var syncErr = "";
+  var clearArmed = false;   // „Alles löschen" braucht zwei Tipper
   var syncStarted = false;
 
   var uid = function(){ return Math.random().toString(36).slice(2,9); };
@@ -342,7 +347,9 @@
     });
     return order.map(function(k){
       var g=groups[k]; var q=g.hasNum?fmtNum(g.num):"";
-      return { id:uid(), text:(g.name+(q?" "+q:"")+(g.unit?" "+g.unit:"")).trim(), done:false, cat:g.cat };
+      // src:"plan" = kommt aus der Tagesplan-Auswahl. Beim nächsten 🛒 werden
+      // genau diese ersetzt; selbst eingetragene Posten bleiben stehen.
+      return { id:uid(), text:(g.name+(q?" "+q:"")+(g.unit?" "+g.unit:"")).trim(), done:false, cat:g.cat, src:"plan" };
     });
   }
 
@@ -355,7 +362,7 @@
     var nChosen = Object.keys(chosenDishNames()).length;
     if(nChosen>0){
       h += '<button class="primary" data-action="shop-from-plan" style="width:100%;padding:12px">🛒 Einkaufsliste aus Tagesplan-Auswahl ('+nChosen+' Gerichte)</button>';
-      h += '<div class="empty small">Tippen → erstellt die Liste neu aus den Zutaten eurer im Tagesplan gewählten Gerichte (ersetzt die aktuelle Liste).</div>';
+      h += '<div class="empty small">Tippen → ersetzt alle Posten der letzten Tagesplan-Auswahl durch die aktuellen. <b>Selbst eingetragene Sachen bleiben stehen.</b></div>';
     } else {
       h += '<div class="empty small">💡 Wähle im Tab <b>Tagesplan</b> eure Gerichte aus — dann erscheint hier ein Knopf, der die Einkaufsliste automatisch aus deren Zutaten erstellt.</div>';
     }
@@ -365,6 +372,17 @@
        + '</div>';
     if(open.length===0 && done.length===0){
       h += '<div class="empty">Noch nichts auf der Liste. Trag oben etwas ein.</div>';
+    } else {
+      h += '<div class="subhead"><span>Liste ('+open.length+' offen)</span>'
+         +   '<button class="linkbtn'+(clearArmed?' warn':'')+'" data-action="shop-clear-all">'
+         +     (clearArmed ? 'Wirklich alles löschen?' : 'Alles löschen')
+         +   '</button>'
+         + '</div>';
+      if(clearArmed){
+        h += '<div class="empty small">Löscht alle '+(open.length+done.length)+' Posten — auch die abgehakten. '
+           + 'Die Liste aus dem Tagesplan ist mit dem 🛒-Knopf oben in einer Sekunde wieder da. '
+           + '<button class="linkbtn" data-action="shop-clear-cancel">Abbrechen</button></div>';
+      }
     }
     // offene Posten nach Kategorie gruppiert
     SHOP_ORDER.forEach(function(cat){
@@ -422,6 +440,27 @@
   }
   // "~420 / ~620" -> [420,620]
   function kcalPair(s){ var m=String(s||"").match(/(\d+)\D+?(\d+)/); return m?[+m[1],+m[2]]:null; }
+
+  // Rezept-Tags auch im Tagesplan zeigen — beim Auswählen will man sehen,
+  // was Energie bringt, was schnell geht, was sich vorkochen lässt.
+  var TAG_SKIP = { "frühstück":1,"mittag":1,"abend":1,"snack":1,"dessert":1,"käse":1,"salat":1 };
+  var TAG_PRIO = ["energie","eisen","schilddrüse","omega-3","low-carb","high-protein",
+                  "schnell","vorkochen","meal-prep","fisch","vegetarisch","süß"];
+  function mealTags(){
+    var m={}; (state.kitchen.meals||[]).forEach(function(x){ m[String(x.name).toLowerCase()]=x.tags||[]; });
+    return m;
+  }
+  function optTagHtml(tags){
+    if(!tags || !tags.length) return "";
+    var t = tags.filter(function(x){ return !TAG_SKIP[x]; }).sort(function(a,b){
+      var ia=TAG_PRIO.indexOf(a), ib=TAG_PRIO.indexOf(b);
+      return (ia<0?99:ia)-(ib<0?99:ib);
+    }).slice(0,3);
+    if(!t.length) return "";
+    return '<div class="dptags">'+t.map(function(x){
+      return '<span class="tag'+(x==="energie"?" energy":"")+'">'+esc(x)+'</span>';
+    }).join("")+'</div>';
+  }
 
   function importSection(){
     var h = "";
@@ -588,6 +627,7 @@
     var dp = state.dayplan || { prefs:{}, days:{} };
     var prefs = dp.prefs || {};
     var days = dp.days || {};
+    var tagsByName = mealTags();
     var h = "";
     h += '<div class="info"><span class="h">Neu: Energie am Vormittag</span>'
        +   'Frühstück und Mittagessen sind jetzt die <b>großen</b> Mahlzeiten, der Abend ist '
@@ -599,7 +639,8 @@
        +   '<b>Eisen + Vitamin C zusammen</b> (Fleisch/Linsen/Spinat mit Zitrone, Paprika oder Tomate) — '
        +   'aber <b>kein Kaffee oder Tee zur eisenreichen Mahlzeit</b>, das bremst die Aufnahme. '
        +   'Zu jeder Mahlzeit Eiweiß, Vollkorn statt Weißmehl, Nüsse und Kerne für Magnesium. '
-       +   'Gerichte mit dem Tag <span class="tag">energie</span> sind genau darauf gebaut. '
+       +   'Gerichte mit dem Tag <span class="tag energy">energie</span> sind genau darauf gebaut — '
+       +   'die Tags stehen jetzt direkt bei jeder Option. '
        +   '<i>Das ist Ernährung, kein Arztersatz — bei anhaltender Müdigkeit bleibt die ärztliche Abklärung der Weg.</i>'
        + '</div>';
     h += '<div class="empty small">Tippe pro Mahlzeit deine Wahl an — die App merkt sich, was euch schmeckt (❤) und sortiert Favoriten nach oben. Portionen: <b style="color:#9C5BA0">A</b> = Anna, <b style="color:var(--accent)">D</b> = Andriy. Ein gewähltes Gericht steht am <b>nächsten Tag</b> zusätzlich zur Wahl (↻) — beide Tage antippen heißt: einmal kochen, zweimal essen.</div>';
@@ -639,6 +680,7 @@
              +     (fav?'<span class="dpfav">❤ '+fav+'</span>':'')
              +     (chosen?'<span class="dppick">✓ gewählt</span>':'')
              +   '</div>'
+             +   optTagHtml(tagsByName[o.name.toLowerCase()])
              +   '<div class="dpport"><span class="pa">A: '+esc(o.a||'—')+'</span><span class="pb">D: '+esc(o.b||'—')+'</span></div>'
              +   (o.kcal?'<div class="dpkcal">'+esc(o.kcal)+'</div>':'')
              + '</button>';
@@ -916,7 +958,7 @@
     }
     if(a==="logout"){ if(fbAuth) fbAuth.signOut(); return; }
 
-    if(a==="tab"){ state.tab = el.getAttribute("data-tab"); trainMsg=""; render(); return; }
+    if(a==="tab"){ state.tab = el.getAttribute("data-tab"); trainMsg=""; clearArmed=false; render(); return; }
 
     if(a==="shop-add"){
       var inp = document.getElementById("shop-input"); var v=(inp.value||"").trim();
@@ -928,7 +970,17 @@
     }
     if(a==="shop-del"){ putShopping(state.shopping.filter(function(i){return i.id!==id;})); render(); return; }
     if(a==="shop-clear-done"){ putShopping(state.shopping.filter(function(i){return !i.done;})); render(); return; }
-    if(a==="shop-from-plan"){ putShopping(buildShoppingList()); render(); return; }
+    if(a==="shop-clear-all"){
+      // Zwei Schritte: erst scharf machen, dann löschen — kein Fehlgriff.
+      if(!clearArmed){ clearArmed=true; render(); return; }
+      clearArmed=false; putShopping([]); render(); return;
+    }
+    if(a==="shop-clear-cancel"){ clearArmed=false; render(); return; }
+    if(a==="shop-from-plan"){
+      // Nur die Posten der vorigen Auswahl ersetzen — selbst Eingetragenes bleibt.
+      var eigene=(state.shopping||[]).filter(function(i){ return i.src!=="plan"; });
+      putShopping(buildShoppingList().concat(eigene)); render(); return;
+    }
 
     if(a==="meal-add"){
       var mi=document.getElementById("meal-input"); var mv=(mi.value||"").trim();
