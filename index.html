@@ -144,6 +144,8 @@
   .info b{font-weight:600;}
   .info .h{display:block;font-family:var(--serif);font-size:15px;margin-bottom:4px;}
   .trainmsg{color:var(--done);font-size:13px;margin:2px 0 12px;}
+  .syncerr{background:#FBECEC;border:1px solid #C98A8A;border-radius:8px;padding:8px 11px;
+           font-size:13px;color:#7A2E2E;margin:0 0 14px;}
   .exalt{color:var(--muted);font-size:11px;margin-left:2px;}
   #export-box{min-height:120px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;}
   .kfilter{display:inline-flex;gap:4px;}
@@ -187,6 +189,7 @@
   var loginErr = "";
   var importMsg = "";
   var trainMsg = "";
+  var syncErr = "";
   var syncStarted = false;
 
   var uid = function(){ return Math.random().toString(36).slice(2,9); };
@@ -251,10 +254,26 @@
     dayplan:  lsLoad("dayplan",  SEED_DAYPLAN),
   };
 
-  function putShopping(v){ state.shopping=v; lsSave("shopping",v); if(SYNC&&fbDoc) fbDoc.set({shopping:v},{merge:true}); }
-  function putKitchen(v){  state.kitchen=v;  lsSave("kitchen",v);  if(SYNC&&fbDoc) fbDoc.set({kitchen:v},{merge:true}); }
-  function putTraining(v){ state.training=v; lsSave("training",v); if(SYNC&&fbDoc) fbDoc.set({training:v},{merge:true}); }
-  function putDayplan(v){  state.dayplan=v;  lsSave("dayplan",v);  if(SYNC&&fbDoc) fbDoc.set({dayplan:v},{merge:true}); }
+  // Schreibt ein Feld nach Firestore. Fehler duerfen die App NIE anhalten:
+  // set() wirft z. B. synchron bei verschachtelten Arrays, und frueher ist
+  // damit der ganze Import abgebrochen. Lokal ist zu dem Zeitpunkt schon
+  // gespeichert — der Fehler wird nur sichtbar gemeldet.
+  function syncSet(field, v){
+    if(!(SYNC && fbDoc)) return;
+    var o={}; o[field]=v;
+    try{
+      var p = fbDoc.set(o,{merge:true});
+      if(p && p.catch) p.catch(function(e){ noteSyncErr(field, e); });
+    }catch(e){ noteSyncErr(field, e); }
+  }
+  function noteSyncErr(field, e){
+    syncErr = "Konnte „"+field+"“ nicht zu Anya synchronisieren: "+(e&&e.message?e.message:e);
+    console.error("Firestore-Schreibfehler ("+field+"):", e);
+  }
+  function putShopping(v){ state.shopping=v; lsSave("shopping",v); syncSet("shopping",v); }
+  function putKitchen(v){  state.kitchen=v;  lsSave("kitchen",v);  syncSet("kitchen",v); }
+  function putTraining(v){ state.training=v; lsSave("training",v); syncSet("training",v); }
+  function putDayplan(v){  state.dayplan=v;  lsSave("dayplan",v);  syncSet("dayplan",v); }
 
   /* -------- Einkaufsliste: parsen, konsolidieren (summieren), kategorisieren -------- */
   var SHOP_CATS = [
@@ -486,7 +505,7 @@
     if(trainMsg) h += '<div class="trainmsg">'+esc(trainMsg)+'</div>';
     Object.keys(prog).forEach(function(key){
       var day = prog[key];
-      var nAlt = (day.slots||[]).reduce(function(n,s){ return n+(s.length>1?1:0); },0);
+      var nAlt = (day.slots||[]).reduce(function(n,s){ return n+(slotAlts(s).length>1?1:0); },0);
       h += '<div class="card">'
          +   '<div class="cardhead">'
          +     '<input class="daylabel" value="'+esc(day.label)+'" data-edit="day-label" data-key="'+key+'" />'
@@ -652,6 +671,7 @@
       +   '<div class="sub"><span>Andriy &amp; Anna · Wien</span>'+badge+logout+'</div>'
       + '</header>'
       + '<nav>'+nav+'</nav>'
+      + (syncErr ? '<div class="syncerr">⚠ '+esc(syncErr)+'</div>' : '')
       + '<div id="content">'+body+'</div>';
   }
 
@@ -664,6 +684,14 @@
     var add = meal.ing.filter(function(x){ return !have[x.toLowerCase()]; })
                       .map(function(x){ return { id:uid(), text:x, done:false }; });
     if(add.length){ putShopping(add.concat(state.shopping)); }
+  }
+
+  // Varianten eines Platzes lesen — versteht beide Formen: {alts:[…]} (neu,
+  // Firestore-tauglich) und [… ] (altes Paket, lag nur lokal).
+  function slotAlts(s){
+    if(Array.isArray(s)) return s;
+    if(s && Array.isArray(s.alts)) return s.alts;
+    return [];
   }
 
   function mkEx(e){
@@ -685,14 +713,16 @@
     if(!day || !(day.slots||[]).length) return false;
     var prefs = t.prefs || {};
     var rot = (typeof day.rot==="number" ? day.rot : 0) + (step||1);
-    var ex = day.slots.map(function(alts, i){
+    var ex = day.slots.map(function(s, i){
+      var alts = slotAlts(s);
+      if(!alts.length) return null;
       var ok = alts.filter(function(e){ return prefs[(e.name||"").toLowerCase()]!==-1; });
       if(!ok.length) ok = alts;
       var liked = ok.filter(function(e){ return prefs[(e.name||"").toLowerCase()]===1; });
       var src = liked.length ? liked : ok;
       var pos = ((rot+i) % src.length + src.length) % src.length;
       return mkEx(src[pos]);
-    }).filter(function(e){ return e.name; });
+    }).filter(function(e){ return e && e.name; });
     var prog = Object.assign({}, t.program);
     prog[key] = Object.assign({}, day, { rot:rot, ex:ex });
     putTraining(Object.assign({}, t, { program:prog }));
@@ -751,8 +781,11 @@
           rot: (typeof d.rot==="number" ? d.rot : 0),
           ex: (Array.isArray(d.ex)?d.ex:[]).map(mkEx),
           // slots = pro Muskelgruppe mehrere Varianten; daraus rotiert die App.
+          // Form: [{alts:[…]}, …] — NICHT [[…],[…]], denn Firestore lehnt
+          // Arrays direkt in Arrays ab (DocumentReference.set schlägt sonst fehl).
           slots: Array.isArray(d.slots)
-            ? d.slots.map(function(alts){ return (Array.isArray(alts)?alts:[]).map(mkEx); })
+            ? d.slots.map(function(s){ return { alts: slotAlts(s).map(mkEx) }; })
+                     .filter(function(s){ return s.alts.length; })
             : [],
         };
       });

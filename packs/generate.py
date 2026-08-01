@@ -497,6 +497,19 @@ def clean_slots(slots, drop_ex):
         out.append(keep or alts)
     return out
 
+def firestore_safe(obj, path="", bad=None):
+    """Firestore lehnt Arrays DIREKT in Arrays ab (DocumentReference.set()
+    schlaegt fehl: 'Nested arrays are not supported'). Alles, was die App in
+    das geteilte Dokument schreibt, muss diese Pruefung bestehen."""
+    if bad is None: bad=[]
+    if isinstance(obj, list):
+        for i,v in enumerate(obj):
+            if isinstance(v, list): bad.append(path+"["+str(i)+"]")
+            else: firestore_safe(v, path+"["+str(i)+"]", bad)
+    elif isinstance(obj, dict):
+        for k,v in obj.items(): firestore_safe(v, path+"."+str(k), bad)
+    return bad
+
 def main():
     likes=load_likes()
     bm=likes.get("boost_meals",[]); dm=likes.get("drop_meals",[])
@@ -515,9 +528,11 @@ def main():
                             ("C","Zuhause · Bauch A",HOME_SLOTS_A),
                             ("D","Zuhause · Bauch B",HOME_SLOTS_B)):
         cs=clean_slots(slots,dx)
+        # WICHTIG: Firestore kann KEINE Arrays direkt in Arrays speichern.
+        # Darum jede Variantenliste in ein Objekt packen: [{"alts":[...]}, ...]
         program[key]={"label":label,"rot":WEEK,
                       "ex":build_day(cs,dx,bx,WEEK),
-                      "slots":cs}
+                      "slots":[{"alts":a} for a in cs]}
     training={"program":program}
 
     # Coverage-Sicherung: jede Tagesplan-Option braucht ein Rezept.
@@ -529,9 +544,13 @@ def main():
     orphan=[r["name"] for r in ALL if r["name"].lower() not in pool_names]
     assert not orphan, "Rezept ohne Tagesplan-Option: "+repr(orphan)
 
-    json.dump({"replaceMeals":True,"meals":ALL}, open(os.path.join(HERE,"rezepte.json"),"w",encoding="utf-8"), ensure_ascii=False)
-    json.dump({"dayplan":dayplan}, open(os.path.join(HERE,"wochenplan.json"),"w",encoding="utf-8"), ensure_ascii=False)
-    json.dump({"training":training}, open(os.path.join(HERE,"training.json"),"w",encoding="utf-8"), ensure_ascii=False)
+    packs={"rezepte":{"replaceMeals":True,"meals":ALL},
+           "wochenplan":{"dayplan":dayplan},
+           "training":{"training":training}}
+    for name,data in packs.items():
+        nested=firestore_safe(data)
+        assert not nested, "Verschachtelte Arrays in "+name+".json (Firestore lehnt das ab): "+repr(nested[:5])
+        json.dump(data, open(os.path.join(HERE,name+".json"),"w",encoding="utf-8"), ensure_ascii=False)
     print("KW",WEEK,"- Pakete erzeugt.")
     print("  Rezepte:",len(ALL),
           "(F",len(FRUEHSTUECK),"/ M",len(MITTAG),"/ S",len(SNACK),"/ A",len(ABEND),")")
