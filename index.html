@@ -154,6 +154,9 @@
   .trainmsg{color:var(--done);font-size:13px;margin:2px 0 12px;}
   .syncerr{background:#FBECEC;border:1px solid #C98A8A;border-radius:8px;padding:8px 11px;
            font-size:13px;color:#7A2E2E;margin:0 0 14px;}
+  .stale{background:#FBF6E4;border:1px solid #C9B36A;border-radius:8px;padding:8px 11px;
+         font-size:13px;color:#6B5A1E;margin:0 0 14px;}
+  .ver{font-size:11px;color:var(--muted);opacity:.75;}
   .exalt{color:var(--muted);font-size:11px;margin-left:2px;}
   .exswap{padding:2px 9px;font-size:12px;line-height:1.4;}
   .exlvl{font-size:11px;color:#8A5A1D;background:#FBF2E4;border-radius:999px;padding:1px 7px;}
@@ -184,6 +187,13 @@
 (function () {
   "use strict";
 
+  // Stand dieser Datei. GitHub Pages liefert index.html lange aus dem Cache —
+  // dadurch lief hier schon eine alte Fassung, während die Pakete (die per
+  // fetch mit Cache-Buster kommen) längst neu waren. Die App vergleicht diese
+  // Nummer beim Start mit version.json und sagt Bescheid, wenn sie alt ist.
+  // BEIM ÄNDERN VON index.html IMMER MIT version.json HOCHZÄHLEN.
+  var APP_VERSION = "2026-08-11.4";
+
   /* ----------------------------- Speicher ----------------------------- */
   var LS = "hub:";
   function lsLoad(key, fb){ try{ var v=localStorage.getItem(LS+key); return v?JSON.parse(v):fb; }catch(e){ return fb; } }
@@ -209,6 +219,7 @@
   var importMsg = "";
   var trainMsg = "";
   var syncErr = "";
+  var staleMsg = "";      // „Es gibt eine neuere Fassung“ — siehe checkVersion()
   var clearArmed = false;   // „Alles löschen" braucht zwei Tipper
   var syncStarted = false;
 
@@ -602,10 +613,17 @@
     return h;
   }
 
+  // Reihenfolge der Trainingstage. NIE einfach Object.keys() nehmen: das
+  // Programm läuft durch Firestore, und die Schlüsselreihenfolge eines
+  // Objekts überlebt das nicht zuverlässig. Stand plötzlich C,D,A,B statt
+  // A,B,C,D, sprang die Ansicht beim Tauschen scheinbar zu einem anderen
+  // Tag — man war weiter unten auf der Seite, und dort lag jetzt Gym 2.
+  function progKeys(prog){ return Object.keys(prog||{}).sort(); }
+
   function viewTraining(){
     var t = state.training; var prog = t.program || {};
     var log = t.log || [];
-    var anySlots = Object.keys(prog).some(function(k){ return (prog[k].slots||[]).length; });
+    var anySlots = progKeys(prog).some(function(k){ return (prog[k].slots||[]).length; });
     var h = "";
     if(anySlots){
       var easy = easyOn();
@@ -635,7 +653,7 @@
          + '<b>Für den wechselnden Übungspool einmal in der Küche „📥 Training laden“ tippen.</b></div>';
     }
     if(trainMsg) h += '<div class="trainmsg">'+esc(trainMsg)+'</div>';
-    Object.keys(prog).forEach(function(key){
+    progKeys(prog).forEach(function(key){
       var day = prog[key];
       // Wie viel Auswahl steht im aktuellen Modus wirklich zur Verfügung?
       var nAlt = (day.slots||[]).reduce(function(n,s){ return n+(slotAlts(s).length>1?1:0); },0);
@@ -849,10 +867,12 @@
     app.innerHTML =
         '<header>'
       +   '<div class="title">Haushaltsbuch</div>'
-      +   '<div class="sub"><span>Andriy &amp; Anna · Wien</span>'+badge+logout+'</div>'
+      +   '<div class="sub"><span>Andriy &amp; Anna · Wien</span>'+badge+logout
+      +     '<span class="ver" title="Stand dieser App">v'+esc(APP_VERSION)+'</span></div>'
       + '</header>'
       + '<nav>'+nav+'</nav>'
       + (syncErr ? '<div class="syncerr">⚠ '+esc(syncErr)+'</div>' : '')
+      + (staleMsg ? '<div class="stale">⟳ '+esc(staleMsg)+'</div>' : '')
       + '<div id="content">'+body+'</div>';
     applyAnchor(keepY);
     lastTab = state.tab;
@@ -998,7 +1018,7 @@
     // --- Trainingsplan (ersetzt das Programm, Verlauf bleibt) ---
     if(data.training && data.training.program && typeof data.training.program==="object"){
       var prog = {};
-      Object.keys(data.training.program).forEach(function(key){
+      Object.keys(data.training.program).sort().forEach(function(key){
         var d = data.training.program[key] || {};
         // slots = pro Muskelgruppe mehrere Varianten; daraus wählt die App.
         // Form: [{alts:[…]}, …] — NICHT [[…],[…]], denn Firestore lehnt
@@ -1317,11 +1337,23 @@
   // Ohne Config: sofort die App (lokaler Modus). Mit Config: erst "Verbinde …",
   // dann je nach Login entweder Login-Screen oder die App.
   render();
+  checkVersion();
 
   // Eigene Schreibvorgänge dürfen sich nicht selbst überholen. So lange
   // schützen wir ein Feld vor Rückmeldungen aus der Cloud:
   var WRITE_GUARD = 4000;
   var lastSnap = null, snapTimer = null;
+
+  // Vergleich, der die Schlüsselreihenfolge ignoriert. Firestore gibt Objekte
+  // nicht zwingend in derselben Reihenfolge zurück, in der wir sie geschrieben
+  // haben — mit einfachem JSON.stringify galt derselbe Inhalt dann als
+  // Änderung, und die App baute die Ansicht ohne Grund neu auf.
+  function stableJson(v){
+    if(v === null || typeof v !== "object") return JSON.stringify(v);
+    if(Array.isArray(v)) return "["+v.map(stableJson).join(",")+"]";
+    return "{"+Object.keys(v).sort().map(function(k){
+      return JSON.stringify(k)+":"+stableJson(v[k]); }).join(",")+"}";
+  }
 
   function applySnap(){
     var d = lastSnap;
@@ -1331,7 +1363,7 @@
       if(d[f] === undefined || d[f] === null) return;
       // Gleicher Stand: nichts tun — sonst rendert die App bei jeder
       // Bestätigung neu, was wie ein Neuladen der Seite aussieht.
-      if(JSON.stringify(d[f]) === JSON.stringify(state[f])) return;
+      if(stableJson(d[f]) === stableJson(state[f])) return;
       var age = Date.now() - (lastWrite[f] || 0);
       if(age < WRITE_GUARD){
         // Unsere eigene Änderung ist jünger. Später nochmal ansehen: war es
@@ -1343,6 +1375,22 @@
     });
     if(changed) render();
     if(retryIn){ clearTimeout(snapTimer); snapTimer = setTimeout(applySnap, retryIn + 50); }
+  }
+
+  // Läuft hier noch eine alte, aus dem Cache geladene Fassung? version.json
+  // wird mit Cache-Buster geholt (wie die Pakete) und ist deshalb immer der
+  // echte Stand auf dem Server.
+  function checkVersion(){
+    fetch("version.json?cb="+Date.now(), { cache:"no-store" })
+      .then(function(r){ return r.ok ? r.json() : null; })
+      .then(function(v){
+        if(!v || !v.app || v.app === APP_VERSION) return;
+        staleMsg = "Es gibt eine neuere Fassung der App (" + v.app + ", hier läuft "
+                 + APP_VERSION + "). Seite einmal neu laden — am Handy die Seite "
+                 + "herunterziehen, am Rechner Strg+Umschalt+R.";
+        render();
+      })
+      .catch(function(){ /* offline ist kein Fehler */ });
   }
 
   function startSync(){
