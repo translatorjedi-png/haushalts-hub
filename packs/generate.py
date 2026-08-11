@@ -650,16 +650,22 @@ GYM_B_SLOTS = [
   EX("Aufrechtes Rudern am Kabel","3 × 12","Upright Cable Row","Upright_Cable_Row",2)]),
 ]
 
+# Zuhause: nur Koerpergewicht - kein Ball, kein Band, keine Bank, keine
+# Klimmzugstange und keine reinen Dehnuebungen. Der Pool ist dadurch
+# kleiner als im Gym (8-10 statt 10-12 je Platz); mehr gibt die
+# Bilddatenbank ohne Kleingeraet nicht her.
 HOME_SLOTS_A = [
  SLOT("Oberer Bauch", [
   EX("Crunches","3 × 15","Crunches","Crunches"),
   EX("Sit-Ups","3 × 12","Sit-Up","Sit-Up"),
-  EX("Cross-Body-Crunch","3 × 12 je Seite","Cross-Body Crunch","Cross-Body_Crunch"),
-  EX("Zehen antippen","3 × 15","Toe Touchers","Toe_Touchers"),
-  EX("Crunch (Hände über Kopf)","3 × 12","Crunch - Hands Overhead","Crunch_-_Hands_Overhead"),
   EX("3/4-Sit-Up","3 × 12","3/4 Sit-Up","3_4_Sit-Up"),
+  EX("Crunch (Hände über Kopf)","3 × 12","Crunch - Hands Overhead","Crunch_-_Hands_Overhead"),
   EX("Crunch mit angezogenen Knien","3 × 15","Tuck Crunch","Tuck_Crunch"),
-  EX("Ellbogen zum Knie","3 × 12 je Seite","Elbow to Knee","Elbow_to_Knee")]),
+  EX("Janda-Sit-Up","3 × 10","Janda Sit-Up","Janda_Sit-Up"),
+  EX("Frosch-Sit-Ups","3 × 12","Frog Sit-Ups","Frog_Sit-Ups"),
+  EX("Zehen antippen","3 × 15","Toe Touchers","Toe_Touchers"),
+  EX("Ellbogen zum Knie","3 × 12 je Seite","Elbow to Knee","Elbow_to_Knee"),
+  EX("Cross-Body-Crunch","3 × 12 je Seite","Cross-Body Crunch","Cross-Body_Crunch")]),
  SLOT("Unterer Bauch", [
   EX("Beinheben (liegend)","3 × 12","Lying Leg Raise","Flat_Bench_Lying_Leg_Raise"),
   EX("Umgekehrte Crunches","3 × 12","Reverse Crunch","Reverse_Crunch"),
@@ -668,20 +674,28 @@ HOME_SLOTS_A = [
   EX("Hüftheben angewinkelt","3 × 12","Bent-Knee Hip Raise","Bent-Knee_Hip_Raise"),
   EX("Scherenschlag","3 × 20","Scissor Kick","Scissor_Kick"),
   EX("Cocoons","3 × 12","Cocoons","Cocoons"),
+  EX("Sitzende Beinzüge","3 × 12","Seated Leg Tucks","Seated_Leg_Tucks"),
+  EX("Beine anziehen (sitzend)","3 × 12","Seated Leg Pull-In","Seated_Flat_Bench_Leg_Pull-In"),
   EX("Klappmesser","3 × 10","Jackknife Sit-Up","Jackknife_Sit-Up",2)]),
- SLOT("Stabilität", [
+ SLOT("Stabilität & Rumpf", [
   EX("Plank","3 × 20–30 s","Plank","Plank"),
   EX("Seitlicher Plank","2 × 20 s je Seite","Side Bridge","Side_Bridge"),
   EX("Käfer (Dead Bug)","3 × 10 je Seite","Dead Bug","Dead_Bug"),
   EX("Butt-Ups","3 × 12","Butt-Ups","Butt-Ups"),
   EX("Bauch anspannen (Bottoms Up)","3 × 12","Bottoms Up","Bottoms_Up"),
+  EX("Bauchnabel einziehen","3 × 20 s","Stomach Vacuum","Stomach_Vacuum"),
+  EX("Superman","3 × 12","Superman","Superman"),
+  EX("Unterer Rücken (Curl)","3 × 12","Lower Back Curl","Lower_Back_Curl"),
   EX("Spider Crawl","3 × 10 je Seite","Spider Crawl","Spider_Crawl",2)]),
- SLOT("Schräge Bauchmuskeln", [
+ SLOT("Schräge Bauchmuskeln & Tempo", [
   EX("Mountain Climbers","3 × 20","Mountain Climbers","Mountain_Climbers"),
   EX("Bicycle-Crunch","3 × 20","Air Bike","Air_Bike"),
   EX("Fersen antippen","3 × 20","Alternate Heel Touchers","Alternate_Heel_Touchers"),
-  EX("Seitliche Crunches","3 × 12 je Seite","Oblique Crunches","Oblique_Crunches_-_On_The_Floor"),
+  EX("Seitliche Crunches (Boden)","3 × 12 je Seite","Oblique Crunches - On The Floor","Oblique_Crunches_-_On_The_Floor"),
+  EX("Seitliche Crunches","3 × 12 je Seite","Oblique Crunches","Oblique_Crunches"),
   EX("Seitliches Klappmesser","3 × 12 je Seite","Side Jackknife","Side_Jackknife"),
+  EX("Wind Sprints","3 × 20","Wind Sprints","Wind_Sprints"),
+  EX("Inchworm","3 × 8","Inchworm","Inchworm"),
   EX("Russian Twist","3 × 20","Russian Twist","Russian_Twist",2)]),
 ]
 
@@ -692,26 +706,39 @@ HOME_SLOTS_B = [
   EX("Kniebeuge (Körpergewicht)","3 × 15","Bodyweight Squat","Bodyweight_Squat"),
   EX("Gesäß-Kickback","3 × 15 je Bein","Glute Kickback","Glute_Kickback"),
   EX("Step-up mit Knieheben","3 × 12 je Bein","Step-up with Knee Raise","Step-up_with_Knee_Raise"),
-  EX("Beckenkippen-Brücke","3 × 12","Pelvic Tilt Into Bridge","Pelvic_Tilt_Into_Bridge",2)]),
- SLOT("Rücken & Rumpf", [
-  EX("Superman","3 × 12","Superman","Superman"),
-  EX("Käfer (Dead Bug)","3 × 10 je Seite","Dead Bug","Dead_Bug"),
+  EX("Beinheben (Gesäß)","3 × 15 je Bein","Leg Lift","Leg_Lift"),
   EX("Seitliches Beinheben","3 × 15 je Seite","Side Leg Raises","Side_Leg_Raises"),
+  EX("Beinheben nach vorn","3 × 15 je Bein","Front Leg Raises","Front_Leg_Raises"),
+  EX("Beckenkippen-Brücke","3 × 12","Pelvic Tilt Into Bridge","Pelvic_Tilt_Into_Bridge",2),
+  EX("Knieheben-Sprung","3 × 10","Knee Tuck Jump","Knee_Tuck_Jump",2)]),
+ SLOT("Rücken & Haltung", [
+  EX("Superman","3 × 12","Superman","Superman"),
   EX("Unterer Rücken (Curl)","3 × 12","Lower Back Curl","Lower_Back_Curl"),
+  EX("Käfer (Dead Bug)","3 × 10 je Seite","Dead Bug","Dead_Bug"),
   EX("Inchworm","3 × 8","Inchworm","Inchworm"),
-  EX("Rückenstrecken ohne Bank","3 × 12","Hyperextensions (No Bench)","Hyperextensions_With_No_Hyperextension_Bench",2)]),
+  EX("Stehendes Beckenkippen","3 × 15","Standing Pelvic Tilt","Standing_Pelvic_Tilt"),
+  EX("Hüftkreisen (bäuchlings)","3 × 10 je Seite","Hip Circles (prone)","Hip_Circles_prone"),
+  EX("Rückenstrecken ohne Bank","3 × 12","Hyperextensions (No Bench)","Hyperextensions_With_No_Hyperextension_Bench",2),
+  EX("Rückwärts-Ausfallschritt (überkreuz)","3 × 10 je Bein","Crossover Reverse Lunge","Crossover_Reverse_Lunge",2)]),
  SLOT("Stabilität", [
   EX("Seitlicher Plank","2 × 20 s je Seite","Side Bridge","Side_Bridge"),
   EX("Plank","3 × 25–35 s","Plank","Plank"),
   EX("Mountain Climbers","3 × 20","Mountain Climbers","Mountain_Climbers"),
   EX("Butt-Ups","3 × 12","Butt-Ups","Butt-Ups"),
-  EX("Bauch anspannen (Bottoms Up)","3 × 12","Bottoms Up","Bottoms_Up")]),
+  EX("Bauch anspannen (Bottoms Up)","3 × 12","Bottoms Up","Bottoms_Up"),
+  EX("Bauchnabel einziehen","3 × 20 s","Stomach Vacuum","Stomach_Vacuum"),
+  EX("Wind Sprints","3 × 20","Wind Sprints","Wind_Sprints"),
+  EX("Spider Crawl","3 × 10 je Seite","Spider Crawl","Spider_Crawl",2)]),
  SLOT("Bauch dynamisch", [
   EX("Bicycle-Crunch","3 × 20","Air Bike","Air_Bike"),
   EX("Stehendes Zehen-Antippen","3 × 15","Standing Toe Touches","Standing_Toe_Touches"),
   EX("Umgekehrte Crunches","3 × 12","Reverse Crunch","Reverse_Crunch"),
   EX("Sitzende Beinzüge","3 × 12","Seated Leg Tucks","Seated_Leg_Tucks"),
-  EX("Beine anziehen (sitzend)","3 × 12","Seated Flat Bench Leg Pull-In","Seated_Flat_Bench_Leg_Pull-In"),
+  EX("Beine anziehen (sitzend)","3 × 12","Seated Leg Pull-In","Seated_Flat_Bench_Leg_Pull-In"),
+  EX("Fersen antippen","3 × 20","Alternate Heel Touchers","Alternate_Heel_Touchers"),
+  EX("Scherenschlag","3 × 20","Scissor Kick","Scissor_Kick"),
+  EX("Cocoons","3 × 12","Cocoons","Cocoons"),
+  EX("Ellbogen zum Knie","3 × 12 je Seite","Elbow to Knee","Elbow_to_Knee"),
   EX("Russian Twist","3 × 20","Russian Twist","Russian_Twist",2)]),
 ]
 
@@ -844,6 +871,19 @@ def main():
             if len(easy)<5:
                 thin.append(key+"/"+s.get("grp","Platz "+str(i+1))+": nur "+str(len(easy))+" einfache")
     assert not thin, "Zu wenig Anfaenger-Alternativen: "+repr(thin)
+    # Keine Uebung darf an EINEM Tag auf zwei Plaetzen liegen - sonst kann sie
+    # in derselben Einheit doppelt auftauchen. Ueber verschiedene Tage hinweg
+    # ist Wiederholung dagegen gewollt (der Koerpergewicht-Pool ist begrenzt).
+    dopp=[]
+    for key,day in program.items():
+        gesehen={}
+        for s in day["slots"]:
+            for e in s["alts"]:
+                n=e["name"].lower()
+                if n in gesehen and gesehen[n]!=s["grp"]:
+                    dopp.append(key+": „"+e["name"]+"“ in "+gesehen[n]+" und "+s["grp"])
+                gesehen[n]=s["grp"]
+    assert not dopp, "Übung doppelt am selben Tag: "+repr(dopp)
     # Bauch wird zuhause trainiert (Tage C/D) - im Gym hat er nichts verloren.
     ABS_WORDS=("crunch","sit-up","sit up","plank","bauch","oblique","russian twist",
                "air bike","mountain climber","heel touch","toe touch","zehen",
