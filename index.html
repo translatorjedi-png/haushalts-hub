@@ -153,6 +153,8 @@
   .exalt{color:var(--muted);font-size:11px;margin-left:2px;}
   .exswap{padding:2px 9px;font-size:12px;line-height:1.4;}
   .exlvl{font-size:11px;color:#8A5A1D;background:#FBF2E4;border-radius:999px;padding:1px 7px;}
+  .exgrp{font-size:11px;color:#3A5A7A;background:#EAF1F8;border-radius:999px;padding:1px 8px;font-weight:600;}
+  .expin{font-size:11px;color:#5A6B3A;background:#F1F5E6;border-radius:999px;padding:1px 8px;}
   .exmeta{flex-wrap:wrap;gap:8px;}
   #export-box{min-height:120px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;}
   .kfilter{display:inline-flex;gap:4px;}
@@ -266,7 +268,16 @@
   // set() wirft z. B. synchron bei verschachtelten Arrays, und frueher ist
   // damit der ganze Import abgebrochen. Lokal ist zu dem Zeitpunkt schon
   // gespeichert — der Fehler wird nur sichtbar gemeldet.
+  //
+  // lastWrite hält fest, wann WIR ein Feld zuletzt selbst geschrieben haben.
+  // Firestore meldet jeden Stand mehrfach zurück (lokal sofort, danach vom
+  // Server bestätigt). Traf eine ältere Bestätigung nach einer neueren
+  // Änderung ein, überschrieb sie den frischen Stand — beim zweiten
+  // „⇄ tauschen“ standen dadurch wieder die alten Übungen da.
+  // applySnap() ignoriert Rückmeldungen innerhalb dieses Zeitfensters.
+  var lastWrite = {};
   function syncSet(field, v){
+    lastWrite[field] = Date.now();
     if(!(SYNC && fbDoc)) return;
     var o={}; o[field]=v;
     try{
@@ -536,16 +547,21 @@
     if(anySlots){
       var easy = easyOn();
       h += '<div class="info"><span class="h">Die Übungen wechseln jetzt von selbst</span>'
-         +   'Jeder Trainingstag hat pro Muskelgruppe mehrere Varianten. '
+         +   'Jeder Platz steht für eine <b>Muskelgruppe</b> (blaue Marke) und hat '
+         +   'dafür <b>10–12 Varianten</b>. '
          +   '<b>„Trainiert ✓“ trägt die Einheit ein <i>und</i> stellt für das nächste Mal andere Übungen ein.</b> '
          +   'Nur umschalten ohne Eintrag: <b>🔄 Andere Übungen</b> (ganzer Tag) oder '
-         +   '<b>⇄</b> bei einer einzelnen Übung. '
-         +   'Was ihr mit 👍 markiert, bleibt stehen; 👎 kommt nicht mehr.'
+         +   '<b>⇄ tauschen</b> bei einer einzelnen Übung — daneben steht, die '
+         +   'wievielte von wie vielen gerade dran ist. '
+         +   'Was ihr mit 👍 markiert, bleibt stehen (👍 nochmal tippen löst das wieder); '
+         +   '👎 kommt nicht mehr. <b>Bauch nur an den Zuhause-Tagen</b>, im Gym nicht.'
          + '</div>';
       h += '<div class="info"><span class="h">Anfänger-Modus</span>'
-         +   'Ist er an, kommen nur <b>geführte Maschinen, Kabelzug und einfache '
-         +   'Körpergewichtsübungen</b> — nichts, wo die Technik im Weg steht. '
-         +   'Aus schaltet zusätzlich Kurzhanteln und Langhantel frei.'
+         +   'Ist er an, kommen <b>geführte Maschinen, Kabelzug, einfache '
+         +   'Kurzhantel-Übungen und leichte Körpergewichtsübungen</b> — nichts, wo die '
+         +   'Technik im Weg steht. '
+         +   'Aus schaltet zusätzlich Langhantel und technisch Anspruchsvolles frei '
+         +   '(Kreuzheben, Ausfallschritte, vorgebeugtes Rudern).'
          +   '<div class="row" style="margin:9px 0 0">'
          +     '<button class="kfbtn'+(easy?' on':'')+'" data-action="easy-toggle" data-v="1">Nur einfache Übungen</button>'
          +     '<button class="kfbtn'+(!easy?' on':'')+'" data-action="easy-toggle" data-v="0">Alle Übungen</button>'
@@ -558,7 +574,10 @@
     if(trainMsg) h += '<div class="trainmsg">'+esc(trainMsg)+'</div>';
     Object.keys(prog).forEach(function(key){
       var day = prog[key];
+      // Wie viel Auswahl steht im aktuellen Modus wirklich zur Verfügung?
       var nAlt = (day.slots||[]).reduce(function(n,s){ return n+(slotAlts(s).length>1?1:0); },0);
+      var nPick = (day.slots||[]).reduce(function(n,s){
+        return n + slotAllowed(slotAlts(s), t.prefs||{}, easyOn()).length; },0);
       h += '<div class="card">'
          +   '<div class="cardhead">'
          +     '<input class="daylabel" value="'+esc(day.label)+'" data-edit="day-label" data-key="'+key+'" />'
@@ -566,7 +585,8 @@
          +   '</div>';
       if(nAlt){
         h += '<div class="row" style="margin:-4px 0 8px"><button class="chip" data-action="train-rotate" data-key="'+key+'">🔄 Andere Übungen</button>'
-           +   '<span class="exalt" style="align-self:center">'+nAlt+' von '+day.slots.length+' Plätzen haben Varianten</span></div>';
+           +   '<span class="exalt" style="align-self:center">'+day.slots.length+' Plätze · '
+           +   nPick+' Übungen zur Auswahl</span></div>';
       }
       (day.ex||[]).forEach(function(e){
         h += '<div class="exitem">'
@@ -579,15 +599,22 @@
         var meta = '';
         // Wie viele Varianten hat der Platz dieser Übung — und die wievielte ist dran?
         if(typeof e.si==="number" && day.slots && day.slots[e.si]){
-          var cands = slotCandidates(slotAlts(day.slots[e.si]), t.prefs||{}, easyOn());
+          var slot  = day.slots[e.si];
+          if(slot.grp) meta += '<span class="exgrp">'+esc(slot.grp)+'</span>';
+          var alts  = slotAlts(slot);
+          var cands = slotCandidates(alts, t.prefs||{}, easyOn());
           if(cands.length>1){
             var sel = daySel(day);
             var pos = ((sel[e.si]||0) % cands.length + cands.length) % cands.length;
             meta += '<button class="chip exswap" data-action="ex-swap" data-key="'+key+'" data-si="'+e.si+'" title="andere Übung für diesen Platz">⇄ tauschen</button>';
             meta += '<span class="exalt">'+(pos+1)+' von '+cands.length+'</span>';
+          } else if(slotAllowed(alts, t.prefs||{}, easyOn()).length>1){
+            // Nur eine Kandidatin, weil sie mit 👍 markiert ist: sagen statt
+            // den Tausch-Knopf kommentarlos verschwinden zu lassen.
+            meta += '<span class="expin">📌 bleibt stehen — 👍 nochmal tippen zum Wechseln</span>';
           }
         }
-        if((e.lvl||1)>1) meta += '<span class="exlvl">freie Gewichte</span>';
+        if((e.lvl||1)>1) meta += '<span class="exlvl">mehr Technik</span>';
         if(e.en) meta += '<span class="exen">'+esc(e.en)+'</span>';
         meta += '<button class="exlk'+(liked===1?' on':'')+'" data-action="ex-like" data-key="'+key+'" data-name="'+esc(e.name)+'" aria-label="gefällt mir">👍</button>';
         meta += '<button class="exdk'+(liked===-1?' on':'')+'" data-action="ex-dislike" data-key="'+key+'" data-name="'+esc(e.name)+'" aria-label="gefällt mir nicht">👎</button>';
@@ -709,8 +736,13 @@
   }
 
   /* ------------------------------- Render ----------------------------- */
+  var lastTab = null;
   function render(){
     var app = document.getElementById("app");
+    // Scrollposition merken: render() baut den ganzen Inhalt neu auf. Ohne das
+    // springt die App bei jedem Tipp nach ganz oben — es wirkt, als hätte die
+    // Seite neu geladen (genau das war beim Übungstauschen der Fall).
+    var keepY = (window.pageYOffset || document.documentElement.scrollTop || 0);
 
     if(authState === "loading"){
       app.innerHTML = '<div class="empty" style="text-align:center;margin-top:16vh">Verbinde …</div>';
@@ -740,6 +772,11 @@
       + '<nav>'+nav+'</nav>'
       + (syncErr ? '<div class="syncerr">⚠ '+esc(syncErr)+'</div>' : '')
       + '<div id="content">'+body+'</div>';
+    // Innerhalb desselben Tabs an dieselbe Stelle zurück; beim Tabwechsel
+    // gehört der Sprung nach oben dazu.
+    if(lastTab === null || lastTab === state.tab){ if(keepY > 0) window.scrollTo(0, keepY); }
+    else window.scrollTo(0, 0);
+    lastTab = state.tab;
   }
 
   /* --------------------------- Interaktionen -------------------------- */
@@ -773,19 +810,28 @@
     return o;
   }
 
-  // Anfänger-Modus: standardmäßig AN — zeigt nur geführte Maschinen, Kabelzug
-  // und einfache Körpergewichtsübungen.
+  // Anfänger-Modus: standardmäßig AN — zeigt geführte Maschinen, Kabelzug,
+  // einfache Kurzhantel-Übungen und leichte Körpergewichtsübungen.
   function easyOn(){ return (state.training||{}).easy !== false; }
 
-  // Welche Varianten kommen für einen Platz gerade in Frage?
-  // 👎 raus, im Anfänger-Modus nur lvl 1, 👍 schlägt alles andere.
-  function slotCandidates(alts, prefs, easy){
+  // Alle Varianten, die für einen Platz überhaupt erlaubt sind:
+  // 👎 raus, im Anfänger-Modus nur lvl 1.
+  function slotAllowed(alts, prefs, easy){
     var ok = alts.filter(function(e){ return prefs[(e.name||"").toLowerCase()]!==-1; });
     if(!ok.length) ok = alts.slice();
     if(easy){
       var simple = ok.filter(function(e){ return (e.lvl||1) <= 1; });
       if(simple.length) ok = simple;
     }
+    return ok;
+  }
+
+  // Welche Varianten kommen für einen Platz gerade dran? 👍 schlägt alles
+  // andere — der Platz bleibt dann bei der gelikten Übung stehen. Das ist
+  // gewollt, wird im Trainings-Tab aber ausdrücklich angezeigt („bleibt
+  // stehen“), sonst wirkt es wie ein kaputter Tausch-Knopf.
+  function slotCandidates(alts, prefs, easy){
+    var ok = slotAllowed(alts, prefs, easy);
     var liked = ok.filter(function(e){ return prefs[(e.name||"").toLowerCase()]===1; });
     return liked.length ? liked : ok;
   }
@@ -879,8 +925,11 @@
         // Form: [{alts:[…]}, …] — NICHT [[…],[…]], denn Firestore lehnt
         // Arrays direkt in Arrays ab (DocumentReference.set schlägt sonst fehl).
         var slots = Array.isArray(d.slots)
-          ? d.slots.map(function(s){ return { alts: slotAlts(s).map(mkEx) }; })
-                   .filter(function(s){ return s.alts.length; })
+          ? d.slots.map(function(s){
+              var o = { alts: slotAlts(s).map(mkEx) };
+              if(s && s.grp) o.grp = String(s.grp);   // Muskelgruppe des Platzes
+              return o;
+            }).filter(function(s){ return s.alts.length; })
           : [];
         var rot0 = (typeof d.rot==="number" ? d.rot : 0);
         prog[key] = {
@@ -1186,17 +1235,41 @@
   // dann je nach Login entweder Login-Screen oder die App.
   render();
 
+  // Eigene Schreibvorgänge dürfen sich nicht selbst überholen. So lange
+  // schützen wir ein Feld vor Rückmeldungen aus der Cloud:
+  var WRITE_GUARD = 4000;
+  var lastSnap = null, snapTimer = null;
+
+  function applySnap(){
+    var d = lastSnap;
+    if(!d) return;
+    var changed = false, retryIn = 0;
+    ["shopping","kitchen","training","dayplan"].forEach(function(f){
+      if(d[f] === undefined || d[f] === null) return;
+      // Gleicher Stand: nichts tun — sonst rendert die App bei jeder
+      // Bestätigung neu, was wie ein Neuladen der Seite aussieht.
+      if(JSON.stringify(d[f]) === JSON.stringify(state[f])) return;
+      var age = Date.now() - (lastWrite[f] || 0);
+      if(age < WRITE_GUARD){
+        // Unsere eigene Änderung ist jünger. Später nochmal ansehen: war es
+        // doch eine Änderung vom anderen Gerät, kommt sie dann an.
+        retryIn = Math.max(retryIn, WRITE_GUARD - age);
+        return;
+      }
+      state[f] = d[f]; lsSave(f, d[f]); changed = true;
+    });
+    if(changed) render();
+    if(retryIn){ clearTimeout(snapTimer); snapTimer = setTimeout(applySnap, retryIn + 50); }
+  }
+
   function startSync(){
     if(syncStarted || !fbDoc) return;
     syncStarted = true;
     fbDoc.onSnapshot(function(snap){
       var d = snap.data();
       if(!d){ fbDoc.set({shopping:state.shopping, kitchen:state.kitchen, training:state.training, dayplan:state.dayplan}); return; }
-      if(d.shopping){ state.shopping=d.shopping; lsSave("shopping",d.shopping); }
-      if(d.kitchen){  state.kitchen =d.kitchen;  lsSave("kitchen", d.kitchen); }
-      if(d.training){ state.training=d.training; lsSave("training",d.training); }
-      if(d.dayplan){  state.dayplan =d.dayplan;  lsSave("dayplan", d.dayplan); }
-      render();
+      lastSnap = d;
+      applySnap();
     }, function(err){ console.error("Sync-Fehler:", err); });
   }
 
