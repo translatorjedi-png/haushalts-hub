@@ -120,7 +120,11 @@
   .exlk,.exdk{background:transparent;border:1px solid var(--line);border-radius:999px;padding:2px 9px;font-size:13px;cursor:pointer;line-height:1.4;opacity:.55;}
   .exlk.on{background:#EFF3EA;border-color:var(--done);opacity:1;}
   .exdk.on{background:#FBECEC;border-color:#C98A8A;opacity:1;}
-  .eximg{display:block;margin:8px 0 0;width:100%;max-width:200px;border-radius:8px;border:1px solid var(--line);background:#fff;}
+  /* Feste Höhe: die Bilder haben unterschiedliche Formate und laden nach.
+     Ohne feste Höhe wächst die Seite beim Nachladen und alles darunter
+     rutscht — nach einem Übungstausch stand man plötzlich woanders. */
+  .eximg{display:block;margin:8px 0 0;width:100%;max-width:200px;height:150px;object-fit:contain;
+         border-radius:8px;border:1px solid var(--line);background:#fff;}
   .dpday{margin:18px 0 6px;}
   .dpdayhd{font-family:var(--serif);font-size:20px;border-bottom:1px solid var(--line);padding-bottom:4px;margin-bottom:8px;}
   .dpslot{margin:10px 0 14px;}
@@ -582,7 +586,7 @@
         if(e.erstmals) wann += '<span class="mealwhen">↻ schon am '+esc(e.erstmals)+' gekocht</span>';
         else if(e.mal>1) wann += '<span class="mealwhen">↻ für 2 Tage — doppelte Menge</span>';
       }
-      h += '<li style="padding:12px 2px;border-bottom:1px solid var(--line)">'
+      h += '<li data-anchor="meal-'+m.id+'" style="padding:12px 2px;border-bottom:1px solid var(--line)">'
         + '<div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap">'
         +   wann
         +   '<span class="mealname">'+esc(m.name)+'</span>'
@@ -637,7 +641,7 @@
       var nAlt = (day.slots||[]).reduce(function(n,s){ return n+(slotAlts(s).length>1?1:0); },0);
       var nPick = (day.slots||[]).reduce(function(n,s){
         return n + slotAllowed(slotAlts(s), t.prefs||{}, easyOn()).length; },0);
-      h += '<div class="card">'
+      h += '<div class="card" data-anchor="day-'+key+'">'
          +   '<div class="cardhead">'
          +     '<input class="daylabel" value="'+esc(day.label)+'" data-edit="day-label" data-key="'+key+'" />'
          +     '<button class="primary" data-action="log-session" data-key="'+key+'">Trainiert ✓</button>'
@@ -648,7 +652,9 @@
            +   nPick+' Übungen zur Auswahl</span></div>';
       }
       (day.ex||[]).forEach(function(e){
-        h += '<div class="exitem">'
+        // Anker über den Platz (si), nicht über e.id — die Übungs-ID wird bei
+        // jedem Neuberechnen neu vergeben und wäre nach dem Tausch weg.
+        h += '<div class="exitem" data-anchor="ex-'+key+'-'+(typeof e.si==="number"?e.si:e.id)+'">'
            +   '<div class="exrow">'
            +     '<input class="exname" value="'+esc(e.name)+'" data-edit="ex-name" data-key="'+key+'" data-exid="'+e.id+'" />'
            +     '<input class="exscheme" value="'+esc(e.scheme)+'" data-edit="ex-scheme" data-key="'+key+'" data-exid="'+e.id+'" />'
@@ -795,12 +801,29 @@
   }
 
   /* ------------------------------- Render ----------------------------- */
-  var lastTab = null;
+  // render() baut den ganzen Inhalt neu auf. Die reine Scrollposition zu
+  // merken reicht NICHT: oberhalb kann sich die Höhe ändern (die Meldung
+  // „Übung getauscht.“ kommt neu dazu, eine Meta-Zeile bricht um) — dann
+  // landet man ein Stück weiter unten, bei einem ganz anderen Trainingstag.
+  // Deshalb merken wir uns das angetippte Element und schieben NACH dem
+  // Aufbau genau dieses Element wieder an seine alte Bildschirmposition.
+  var lastTab = null, anchor = null;
+  function setAnchor(el){
+    var a = el && el.closest && el.closest("[data-anchor]");
+    anchor = a ? { id: a.getAttribute("data-anchor"), top: a.getBoundingClientRect().top } : null;
+  }
+  function applyAnchor(keepY){
+    if(anchor){
+      var el = document.querySelector('[data-anchor="'+anchor.id+'"]');
+      if(el){ window.scrollBy(0, el.getBoundingClientRect().top - anchor.top); anchor = null; return; }
+      anchor = null;                       // Element gibt es nicht mehr
+    }
+    if(lastTab === null || lastTab === state.tab){ if(keepY > 0) window.scrollTo(0, keepY); }
+    else window.scrollTo(0, 0);
+  }
+
   function render(){
     var app = document.getElementById("app");
-    // Scrollposition merken: render() baut den ganzen Inhalt neu auf. Ohne das
-    // springt die App bei jedem Tipp nach ganz oben — es wirkt, als hätte die
-    // Seite neu geladen (genau das war beim Übungstauschen der Fall).
     var keepY = (window.pageYOffset || document.documentElement.scrollTop || 0);
 
     if(authState === "loading"){
@@ -831,10 +854,7 @@
       + '<nav>'+nav+'</nav>'
       + (syncErr ? '<div class="syncerr">⚠ '+esc(syncErr)+'</div>' : '')
       + '<div id="content">'+body+'</div>';
-    // Innerhalb desselben Tabs an dieselbe Stelle zurück; beim Tabwechsel
-    // gehört der Sprung nach oben dazu.
-    if(lastTab === null || lastTab === state.tab){ if(keepY > 0) window.scrollTo(0, keepY); }
-    else window.scrollTo(0, 0);
+    applyAnchor(keepY);
     lastTab = state.tab;
   }
 
@@ -1050,6 +1070,10 @@
     var id = el.getAttribute("data-id");
     var key = el.getAttribute("data-key");
     var day = el.getAttribute("data-day");
+    // Merken, worauf getippt wurde — render() setzt genau dieses Element
+    // danach wieder an dieselbe Bildschirmposition (kein Sprung zu einem
+    // anderen Tag). Beim Tabwechsel gehört der Sprung nach oben dazu.
+    if(a === "tab") anchor = null; else setAnchor(el);
 
     if(a==="login"){
       var em=(document.getElementById("login-email").value||"").trim();
