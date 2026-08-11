@@ -154,6 +154,12 @@
   .exswap{padding:2px 9px;font-size:12px;line-height:1.4;}
   .exlvl{font-size:11px;color:#8A5A1D;background:#FBF2E4;border-radius:999px;padding:1px 7px;}
   .exgrp{font-size:11px;color:#3A5A7A;background:#EAF1F8;border-radius:999px;padding:1px 8px;font-weight:600;}
+  .daysep{margin:18px 0 2px;font-weight:700;font-size:15px;letter-spacing:.2px;
+          padding-bottom:5px;border-bottom:2px solid var(--line);}
+  .mealslot{font-size:11px;color:#3A5A7A;background:#EAF1F8;border-radius:999px;
+            padding:1px 8px;font-weight:600;white-space:nowrap;}
+  .mealwhen{font-size:11px;color:#8A5A1D;background:#FBF2E4;border-radius:999px;
+            padding:1px 8px;white-space:nowrap;}
   .expin{font-size:11px;color:#5A6B3A;background:#F1F5E6;border-radius:999px;padding:1px 8px;}
   .exmeta{flex-wrap:wrap;gap:8px;}
   #export-box{min-height:120px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;}
@@ -251,6 +257,7 @@
 
   var TABS = ["Einkauf","Tagesplan","Küche","Training"];
   var DAYS = ["Mo","Di","Mi","Do","Fr","Sa","So"];
+  var DAYS_LANG = ["Montag","Dienstag","Mittwoch","Donnerstag","Freitag","Samstag","Sonntag"];
   var SLOTS = [ {k:"F",label:"Frühstück"}, {k:"M",label:"Mittag"}, {k:"S",label:"Snack"}, {k:"A",label:"Abend"} ];
 
   /* ------------------------------- State ------------------------------ */
@@ -417,17 +424,28 @@
       + '</li>';
   }
 
-  // Namen der im Tagesplan ausgewählten Gerichte (klein geschrieben).
-  function chosenDishNames(){
-    var set = {}; var dp = state.dayplan || {}; var days = dp.days || {};
-    DAYS.forEach(function(d){
+  // Wo steht ein Gericht im Tagesplan? Gericht (klein geschrieben) -> Liste
+  // seiner Plätze, nach Tag und Mahlzeit geordnet. Ein Gericht kann mehrfach
+  // vorkommen (2-Tage-Kochen). Grundlage für die Sortierung in der Küche.
+  function chosenDishPlaces(){
+    var out = {}; var dp = state.dayplan || {}; var days = dp.days || {};
+    DAYS.forEach(function(d, di){
       var day = days[d]; if(!day) return;
-      SLOTS.forEach(function(s){
+      SLOTS.forEach(function(s, si){
         var slot = day[s.k]; if(!slot || !slot.pick) return;
         var o = (slot.opts||[]).find(function(x){ return x.key===slot.pick; });
-        if(o && o.name) set[o.name.toLowerCase()] = true;
+        if(!o || !o.name) return;
+        var key = o.name.toLowerCase();
+        (out[key] = out[key] || []).push({ di:di, si:si, day:d, slot:s.label });
       });
     });
+    return out;
+  }
+
+  // Namen der im Tagesplan ausgewählten Gerichte (klein geschrieben).
+  function chosenDishNames(){
+    var set = {};
+    Object.keys(chosenDishPlaces()).forEach(function(n){ set[n] = true; });
     return set;
   }
 
@@ -489,10 +507,31 @@
 
   function viewKueche(){
     var k = state.kitchen; var meals = k.meals || [];
-    var chosen = chosenDishNames();
-    var selMeals = meals.filter(function(m){ return chosen[m.name.toLowerCase()]; });
+    var places = chosenDishPlaces();
+    var selMeals = meals.filter(function(m){ return places[m.name.toLowerCase()]; });
     var filter = state.kuecheFilter || (selMeals.length>0 ? "sel" : "all");
-    var shown = filter==="sel" ? selMeals : meals;
+
+    // Ein Eintrag je Platz im Tagesplan — dadurch steht ein Gericht, das an
+    // zwei Tagen gewählt ist, auch an beiden Tagen. Nicht eingeplante Rezepte
+    // bekommen keinen Platz und landen (nur in „Alle“) am Ende.
+    var entries = [];
+    meals.forEach(function(m){
+      var ps = places[m.name.toLowerCase()];
+      if(ps && ps.length){
+        ps.forEach(function(p, i){
+          entries.push({ meal:m, place:p, mal:ps.length, erstmals: i>0 ? ps[0].day : null });
+        });
+      } else if(filter==="all"){
+        entries.push({ meal:m, place:null });
+      }
+    });
+    // Montag zuerst, innerhalb des Tages Frühstück → Mittag → Snack → Abend.
+    entries.sort(function(a,b){
+      if(!a.place) return b.place ? 1 : 0;
+      if(!b.place) return -1;
+      return (a.place.di - b.place.di) || (a.place.si - b.place.si);
+    });
+    var shown = entries;
     var h = "";
     h += '<div class="subhead"><span>Rezepte</span>'
        +   '<span class="kfilter">'
@@ -501,7 +540,8 @@
        +   '</span>'
        + '</div>';
     if(filter==="sel"){
-      h += '<div class="empty small">Nur die Gerichte, die ihr im Tab <b>Tagesplan</b> angetippt habt.</div>';
+      h += '<div class="empty small">Nur die Gerichte, die ihr im Tab <b>Tagesplan</b> angetippt habt — '
+         + 'nach Tagen sortiert, innerhalb des Tages Frühstück → Mittag → Snack → Abend.</div>';
     }
     if(filter==="all"){
       h += '<div class="row">'
@@ -514,7 +554,17 @@
       h += importSection();
       return h;
     }
-    h += '<ul class="list">' + shown.map(function(m){
+    // Nach Tagen gruppiert ausgeben; die Überschrift wechselt beim Tageswechsel.
+    var offen = false, letzteGruppe = null;
+    shown.forEach(function(e){
+      var m = e.meal;
+      var gruppe = e.place ? DAYS_LANG[e.place.di] : (selMeals.length ? "Nicht eingeplant" : "");
+      if(gruppe !== letzteGruppe){
+        if(offen){ h += '</ul>'; }
+        // Ohne Tagesplan gibt es nichts zu gruppieren — dann keine Überschrift.
+        h += (gruppe ? '<div class="daysep">'+esc(gruppe)+'</div>' : '') + '<ul class="list">';
+        offen = true; letzteGruppe = gruppe;
+      }
       var tags = (m.tags&&m.tags.length) ? '<div style="margin-top:4px">'+m.tags.map(function(t){return '<span class="tag">'+esc(t)+'</span>';}).join("")+'</div>' : '';
       var ing  = (m.ing&&m.ing.length) ? '<div class="ing">'+m.ing.map(esc).join(" · ")+'</div>' : '';
       var hasSteps = m.steps && m.steps.length;
@@ -525,15 +575,24 @@
       var stepsList = (hasSteps && openNow)
         ? '<ol class="steps">'+m.steps.map(function(s){return '<li>'+esc(s)+'</li>';}).join("")+'</ol>'
         : '';
-      return '<li style="padding:12px 2px;border-bottom:1px solid var(--line)">'
-        + '<div style="display:flex;align-items:baseline;gap:8px">'
+      // Mahlzeit-Marke und Hinweis beim 2-Tage-Kochen
+      var wann = '';
+      if(e.place){
+        wann += '<span class="mealslot">'+esc(e.place.slot)+'</span>';
+        if(e.erstmals) wann += '<span class="mealwhen">↻ schon am '+esc(e.erstmals)+' gekocht</span>';
+        else if(e.mal>1) wann += '<span class="mealwhen">↻ für 2 Tage — doppelte Menge</span>';
+      }
+      h += '<li style="padding:12px 2px;border-bottom:1px solid var(--line)">'
+        + '<div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap">'
+        +   wann
         +   '<span class="mealname">'+esc(m.name)+'</span>'
         +   stepsChip
         +   '<button class="chip" data-action="meal-to-shopping" data-id="'+m.id+'">→ Einkauf</button>'
         +   '<button class="xbtn" data-action="meal-del" data-id="'+m.id+'">×</button>'
         + '</div>' + tags + ing + stepsList
         + '</li>';
-    }).join("") + '</ul>';
+    });
+    if(offen) h += '</ul>';
 
     h += importSection();
     return h;
